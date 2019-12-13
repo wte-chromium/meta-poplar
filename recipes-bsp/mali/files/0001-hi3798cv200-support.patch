@@ -1,0 +1,3408 @@
+From 9c93c45d72b826fd1766782f98ff60d990238b59 Mon Sep 17 00:00:00 2001
+From: "[USER]" <[EMAIL]>
+Date: Wed, 11 Dec 2019 13:52:25 +0100
+Subject: [PATCH] mali720
+
+---
+ driver/product/kernel/Kbuild                  |  18 +
+ driver/product/kernel/Makefile                |  39 ++
+ driver/product/kernel/drivers/base/kds/Kbuild |  34 ++
+ .../product/kernel/drivers/base/kds/Kconfig   |  20 +
+ .../product/kernel/drivers/base/kds/Makefile  |  31 +
+ driver/product/kernel/drivers/base/kds/kds.c  | 557 ++++++++++++++++++
+ .../kernel/drivers/base/kds/sconscript        |  41 ++
+ driver/product/kernel/drivers/base/sconscript |  13 +-
+ driver/product/kernel/drivers/gpu/arm/Kbuild  |   2 +-
+ .../kernel/drivers/gpu/arm/midgard/Kbuild     |  28 +-
+ .../kernel/drivers/gpu/arm/midgard/Makefile   |  20 +-
+ .../midgard/backend/gpu/mali_kbase_devfreq.c  | 157 ++++-
+ .../midgard/backend/gpu/mali_kbase_devfreq.h  |  10 +-
+ .../backend/gpu/mali_kbase_pm_driver.c        |  29 +-
+ .../drivers/gpu/arm/midgard/mali_kbase_defs.h |   7 +-
+ .../arm/midgard/platform/devicetree/Kbuild    |   5 +-
+ .../platform/devicetree/mali_kbase_avs.c      | 184 ++++++
+ .../platform/devicetree/mali_kbase_avs.h      |  20 +
+ .../devicetree/mali_kbase_config_devicetree.c |  65 +-
+ .../devicetree/mali_kbase_config_platform.h   |  29 +-
+ .../platform/devicetree/mali_kbase_proc.c     | 379 ++++++++++++
+ .../platform/devicetree/mali_kbase_proc.h     |  25 +
+ .../devicetree/mali_kbase_proc_helper.c       | 177 ++++++
+ .../devicetree/mali_kbase_runtime_pm.c        |  41 +-
+ driver/product/kernel/include/linux/fb.h      | 413 +++++++++++++
+ driver/product/kernel/include/linux/kds.h     | 173 ++++++
+ driver/product/kernel/kbuild_flags            |  43 ++
+ driver/product/kernel/sconscript              |   5 +-
+ 28 files changed, 2497 insertions(+), 68 deletions(-)
+ create mode 100755 driver/product/kernel/Kbuild
+ create mode 100755 driver/product/kernel/Makefile
+ create mode 100755 driver/product/kernel/drivers/base/kds/Kbuild
+ create mode 100755 driver/product/kernel/drivers/base/kds/Kconfig
+ create mode 100755 driver/product/kernel/drivers/base/kds/Makefile
+ create mode 100755 driver/product/kernel/drivers/base/kds/kds.c
+ create mode 100755 driver/product/kernel/drivers/base/kds/sconscript
+ mode change 100644 => 100755 driver/product/kernel/drivers/base/sconscript
+ mode change 100644 => 100755 driver/product/kernel/drivers/gpu/arm/Kbuild
+ mode change 100644 => 100755 driver/product/kernel/drivers/gpu/arm/midgard/Kbuild
+ mode change 100644 => 100755 driver/product/kernel/drivers/gpu/arm/midgard/Makefile
+ mode change 100644 => 100755 driver/product/kernel/drivers/gpu/arm/midgard/backend/gpu/mali_kbase_devfreq.c
+ mode change 100644 => 100755 driver/product/kernel/drivers/gpu/arm/midgard/backend/gpu/mali_kbase_devfreq.h
+ mode change 100644 => 100755 driver/product/kernel/drivers/gpu/arm/midgard/backend/gpu/mali_kbase_pm_driver.c
+ mode change 100644 => 100755 driver/product/kernel/drivers/gpu/arm/midgard/mali_kbase_defs.h
+ mode change 100644 => 100755 driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/Kbuild
+ create mode 100755 driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_avs.c
+ create mode 100755 driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_avs.h
+ mode change 100644 => 100755 driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_config_devicetree.c
+ mode change 100644 => 100755 driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_config_platform.h
+ create mode 100755 driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_proc.c
+ create mode 100755 driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_proc.h
+ create mode 100755 driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_proc_helper.c
+ mode change 100644 => 100755 driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_runtime_pm.c
+ create mode 100755 driver/product/kernel/include/linux/fb.h
+ create mode 100755 driver/product/kernel/include/linux/kds.h
+ create mode 100755 driver/product/kernel/kbuild_flags
+ mode change 100644 => 100755 driver/product/kernel/sconscript
+
+diff --git a/driver/product/kernel/Kbuild b/driver/product/kernel/Kbuild
+new file mode 100755
+index 0000000..d12a652
+--- /dev/null
++++ b/driver/product/kernel/Kbuild
+@@ -0,0 +1,18 @@
++#
++# (C) COPYRIGHT 2012 ARM Limited. All rights reserved.
++#
++# This program is free software and is provided to you under the terms of the
++# GNU General Public License version 2 as published by the Free Software
++# Foundation, and any use by you of this program is subject to the terms
++# of such GNU licence.
++#
++# A copy of the licence is included with the program, and can also be obtained
++# from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
++# Boston, MA  02110-1301, USA.
++#
++#
++
++#include $(src)/kbuild_flags
++
++obj-y += drivers/base/kds/
++obj-y += drivers/gpu/arm/
+diff --git a/driver/product/kernel/Makefile b/driver/product/kernel/Makefile
+new file mode 100755
+index 0000000..2cb33dc
+--- /dev/null
++++ b/driver/product/kernel/Makefile
+@@ -0,0 +1,39 @@
++#===============================================================================
++# export variables
++#===============================================================================
++ifeq ($(CFG_HI_EXPORT_FLAG),)
++    ifneq ($(srctree),)
++        KERNEL_DIR := $(srctree)
++
++        SDK_DIR := $(KERNEL_DIR)/../../..
++    else
++        SDK_DIR := $(CURDIR)/../../../../..
++    endif
++
++
++endif
++
++##########################################################################################
++#	prepare param
++##########################################################################################
++export CUR_DIR=$(shell pwd)
++export ARCH=$(CFG_HI_CPU_ARCH)
++export KDIR=$(LINUX_DIR)
++export CROSS_COMPILE=$(HI_KERNEL_TOOLCHAINS_NAME)-
++
++include $(src)/kbuild_flags
++
++##########################################################################################
++#	set task
++##########################################################################################
++all: 
++	@rm -f $(CUR_DIR)/drivers/base/kds/kds.ko
++	@rm -f $(CUR_DIR)/drivers/gpu/arm/midgard/mali_kbase.ko
++	make -C $(CUR_DIR)/drivers/base/kds
++	make -C $(CUR_DIR)/drivers/gpu/arm/midgard
++	
++
++clean: 
++	make -C $(CUR_DIR)/drivers/base/kds/ clean
++	make -C $(CUR_DIR)/drivers/gpu/arm/midgard/ clean
++
+diff --git a/driver/product/kernel/drivers/base/kds/Kbuild b/driver/product/kernel/drivers/base/kds/Kbuild
+new file mode 100755
+index 0000000..1ad579f
+--- /dev/null
++++ b/driver/product/kernel/drivers/base/kds/Kbuild
+@@ -0,0 +1,34 @@
++#
++# (C) COPYRIGHT 2012-2013, 2017 ARM Limited. All rights reserved.
++#
++# This program is free software and is provided to you under the terms of the
++# GNU General Public License version 2 as published by the Free Software
++# Foundation, and any use by you of this program is subject to the terms
++# of such GNU licence.
++#
++# A copy of the licence is included with the program, and can also be obtained
++# from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
++# Boston, MA  02110-1301, USA.
++#
++#
++
++
++ifeq ($(CFG_HI_EXPORT_FLAG),)
++    ifneq ($(srctree),)
++        KERNEL_DIR := $(srctree)
++
++        SDK_DIR := $(KERNEL_DIR)/../../..
++    else
++        SDK_DIR := $(CURDIR)/../../../../../../../..
++    endif
++
++
++endif
++
++#include $(src)/kbuild_flags
++
++ccflags-y += -I$(src)/drivers/base/kds \
++		-I$(src)/include
++
++$(warning "ccflags-y = $(ccflags-y)...")
++obj-$(CONFIG_KDS) += kds.o
+diff --git a/driver/product/kernel/drivers/base/kds/Kconfig b/driver/product/kernel/drivers/base/kds/Kconfig
+new file mode 100755
+index 0000000..5f96165
+--- /dev/null
++++ b/driver/product/kernel/drivers/base/kds/Kconfig
+@@ -0,0 +1,20 @@
++#
++# (C) COPYRIGHT 2012 ARM Limited. All rights reserved.
++#
++# This program is free software and is provided to you under the terms of the
++# GNU General Public License version 2 as published by the Free Software
++# Foundation, and any use by you of this program is subject to the terms
++# of such GNU licence.
++#
++# A copy of the licence is included with the program, and can also be obtained
++# from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
++# Boston, MA  02110-1301, USA.
++#
++#
++
++
++
++config KDS
++	tristate "Kernel dependency system"
++	help
++	  This option enables the generic kernel dependency system
+diff --git a/driver/product/kernel/drivers/base/kds/Makefile b/driver/product/kernel/drivers/base/kds/Makefile
+new file mode 100755
+index 0000000..d6e9081
+--- /dev/null
++++ b/driver/product/kernel/drivers/base/kds/Makefile
+@@ -0,0 +1,31 @@
++#
++# (C) COPYRIGHT 2011-2013, 2017 ARM Limited. All rights reserved.
++#
++# This program is free software and is provided to you under the terms of the
++# GNU General Public License version 2 as published by the Free Software
++# Foundation, and any use by you of this program is subject to the terms
++# of such GNU licence.
++#
++# A copy of the licence is included with the program, and can also be obtained
++# from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
++# Boston, MA  02110-1301, USA.
++#
++#
++
++
++
++# linux build system bootstrap for out-of-tree module
++
++# default to building for the host
++ARCH ?= $(shell uname -m)
++
++ifeq ($(KDIR),)
++$(error Must specify KDIR to point to the kernel to target))
++endif
++
++kds:
++	$(MAKE) ARCH=$(ARCH) -C $(KDIR) M=$(CURDIR) EXTRA_CFLAGS="-I$(CURDIR)/../../../include" CONFIG_KDS=m
++
++clean:
++	$(MAKE) ARCH=$(ARCH) -C $(KDIR) M=$(CURDIR) clean
++
+diff --git a/driver/product/kernel/drivers/base/kds/kds.c b/driver/product/kernel/drivers/base/kds/kds.c
+new file mode 100755
+index 0000000..bb61662
+--- /dev/null
++++ b/driver/product/kernel/drivers/base/kds/kds.c
+@@ -0,0 +1,557 @@
++/*
++ *
++ * (C) COPYRIGHT 2012-2015, 2017 ARM Limited. All rights reserved.
++ *
++ * This program is free software and is provided to you under the terms of the
++ * GNU General Public License version 2 as published by the Free Software
++ * Foundation, and any use by you of this program is subject to the terms
++ * of such GNU licence.
++ *
++ * A copy of the licence is included with the program, and can also be obtained
++ * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
++ * Boston, MA  02110-1301, USA.
++ *
++ */
++
++
++
++
++
++#include <linux/slab.h>
++#include <linux/list.h>
++#include <linux/spinlock.h>
++#include <linux/wait.h>
++#include <linux/sched.h>
++#include <linux/err.h>
++#include <linux/module.h>
++#include <linux/workqueue.h>
++#include <linux/kds.h>
++#include <linux/kref.h>
++
++#include <asm/atomic.h>
++
++#define KDS_LINK_TRIGGERED (1u << 0)
++#define KDS_LINK_EXCLUSIVE (1u << 1)
++
++#define KDS_INVALID (void *)-2
++#define KDS_RESOURCE (void *)-1
++
++struct kds_resource_set
++{
++	unsigned long         num_resources;
++	unsigned long         pending;
++	struct kds_callback  *cb;
++	void                 *callback_parameter;
++	void                 *callback_extra_parameter;
++	struct list_head      callback_link;
++	struct work_struct    callback_work;
++	atomic_t              cb_queued;
++	/* This resource set will be freed when there are no pending
++	 * callbacks */
++	struct kref           refcount;
++
++	/* This is only initted when kds_waitall() is called. */
++	wait_queue_head_t     wake;
++
++	struct kds_link       resources[0];
++
++};
++
++static DEFINE_SPINLOCK(kds_lock);
++
++static void __resource_set_release(struct kref *ref)
++{
++	struct kds_resource_set *rset = container_of(ref,
++			struct kds_resource_set, refcount);
++
++	kfree(rset);
++}
++
++int kds_callback_init(struct kds_callback *cb, int direct, kds_callback_fn user_cb)
++{
++	int ret = 0;
++
++	cb->direct = direct;
++	cb->user_cb = user_cb;
++
++	if (!direct)
++	{
++		cb->wq = alloc_workqueue("kds", WQ_UNBOUND | WQ_HIGHPRI, WQ_UNBOUND_MAX_ACTIVE);
++		if (!cb->wq)
++			ret = -ENOMEM;
++	}
++	else
++	{
++		cb->wq = NULL;
++	}
++
++	return ret;
++}
++EXPORT_SYMBOL(kds_callback_init);
++
++void kds_callback_term(struct kds_callback *cb)
++{
++	if (!cb->direct)
++	{
++		BUG_ON(!cb->wq);
++		destroy_workqueue(cb->wq);
++	}
++	else
++	{
++		BUG_ON(cb->wq);
++	}
++}
++
++EXPORT_SYMBOL(kds_callback_term);
++
++static void kds_do_user_callback(struct kds_resource_set *rset)
++{
++	rset->cb->user_cb(rset->callback_parameter, rset->callback_extra_parameter);
++}
++
++static void kds_queued_callback(struct work_struct *work)
++{
++	struct kds_resource_set *rset;
++	rset = container_of(work, struct kds_resource_set, callback_work);
++
++	atomic_dec(&rset->cb_queued);
++
++	kds_do_user_callback(rset);
++}
++
++static void kds_callback_perform(struct kds_resource_set *rset)
++{
++	if (rset->cb->direct)
++		kds_do_user_callback(rset);
++	else
++	{
++		int result;
++
++		atomic_inc(&rset->cb_queued);
++
++		result = queue_work(rset->cb->wq, &rset->callback_work);
++		/* if we got a 0 return it means we've triggered the same rset twice! */
++		WARN_ON(!result);
++	}
++}
++
++void kds_resource_init(struct kds_resource * const res)
++{
++	BUG_ON(!res);
++	INIT_LIST_HEAD(&res->waiters.link);
++	res->waiters.parent = KDS_RESOURCE;
++}
++EXPORT_SYMBOL(kds_resource_init);
++
++int kds_resource_term(struct kds_resource *res)
++{
++	unsigned long lflags;
++	BUG_ON(!res);
++	spin_lock_irqsave(&kds_lock, lflags);
++	if (!list_empty(&res->waiters.link))
++	{
++		spin_unlock_irqrestore(&kds_lock, lflags);
++		printk(KERN_ERR "ERROR: KDS resource is still in use\n");
++		return -EBUSY;
++	}
++	res->waiters.parent = KDS_INVALID;
++	spin_unlock_irqrestore(&kds_lock, lflags);
++	return 0;
++}
++EXPORT_SYMBOL(kds_resource_term);
++
++int kds_async_waitall(
++		struct kds_resource_set ** const pprset,
++		struct kds_callback      *cb,
++		void                     *callback_parameter,
++		void                     *callback_extra_parameter,
++		int                       number_resources,
++		unsigned long            *exclusive_access_bitmap,
++		struct kds_resource     **resource_list)
++{
++	struct kds_resource_set *rset = NULL;
++	unsigned long lflags;
++	int i;
++	int triggered;
++
++	BUG_ON(!pprset);
++	BUG_ON(!resource_list);
++	BUG_ON(!cb);
++
++	WARN_ONCE(number_resources > 10, "Waiting on a high numbers of resources may increase latency, see documentation.");
++
++	rset = kmalloc(sizeof(*rset) + number_resources * sizeof(struct kds_link), GFP_KERNEL);
++	if (!rset)
++	{
++		return -ENOMEM;
++	}
++
++	rset->num_resources = number_resources;
++	rset->pending = number_resources;
++	rset->cb = cb;
++	rset->callback_parameter = callback_parameter;
++	rset->callback_extra_parameter = callback_extra_parameter;
++	INIT_LIST_HEAD(&rset->callback_link);
++	INIT_WORK(&rset->callback_work, kds_queued_callback);
++	atomic_set(&rset->cb_queued, 0);
++	kref_init(&rset->refcount);
++
++	for (i = 0; i < number_resources; i++)
++	{
++		INIT_LIST_HEAD(&rset->resources[i].link);
++		rset->resources[i].parent = rset;
++	}
++
++	spin_lock_irqsave(&kds_lock, lflags);
++
++	for (i = 0; i < number_resources; i++)
++	{
++		unsigned long link_state = 0;
++
++		if (test_bit(i, exclusive_access_bitmap))
++		{
++			link_state |= KDS_LINK_EXCLUSIVE;
++		}
++
++		/* no-one else waiting? */
++		if (list_empty(&resource_list[i]->waiters.link))
++		{
++			link_state |= KDS_LINK_TRIGGERED;
++			rset->pending--;
++		}
++		/* Adding a non-exclusive and the current tail is a triggered non-exclusive? */
++		else if (((link_state & KDS_LINK_EXCLUSIVE) == 0) &&
++				(((list_entry(resource_list[i]->waiters.link.prev, struct kds_link, link)->state & (KDS_LINK_EXCLUSIVE | KDS_LINK_TRIGGERED)) == KDS_LINK_TRIGGERED)))
++		{
++			link_state |= KDS_LINK_TRIGGERED;
++			rset->pending--;
++		}
++		rset->resources[i].state = link_state;
++
++		/* avoid double wait (hang) */
++		if (!list_empty(&resource_list[i]->waiters.link))
++		{
++			/* adding same rset again? */
++			if (list_entry(resource_list[i]->waiters.link.prev, struct kds_link, link)->parent == rset)
++			{
++				goto roll_back;
++			}
++		}
++		list_add_tail(&rset->resources[i].link, &resource_list[i]->waiters.link);
++	}
++
++	triggered = (rset->pending == 0);
++
++	/* set the pointer before the callback is called so it sees it */
++	*pprset = rset;
++
++	spin_unlock_irqrestore(&kds_lock, lflags);
++
++	if (triggered)
++	{
++		/* all resources obtained, trigger callback */
++		kds_callback_perform(rset);
++	}
++
++	return 0;
++
++roll_back:
++	/* roll back */
++	while (i-- > 0)
++	{
++		list_del(&rset->resources[i].link);
++	}
++
++	spin_unlock_irqrestore(&kds_lock, lflags);
++	kfree(rset);
++	return -EINVAL;
++}
++EXPORT_SYMBOL(kds_async_waitall);
++
++static void wake_up_sync_call(void *callback_parameter, void *callback_extra_parameter)
++{
++	wait_queue_head_t *wait = (wait_queue_head_t *)callback_parameter;
++	wake_up(wait);
++}
++
++static struct kds_callback sync_cb =
++{
++	wake_up_sync_call,
++	1,
++	NULL,
++};
++
++struct kds_resource_set *kds_waitall(
++		int                   number_resources,
++		unsigned long        *exclusive_access_bitmap,
++		struct kds_resource **resource_list,
++		unsigned long         jiffies_timeout)
++{
++	struct kds_resource_set *rset;
++	unsigned long lflags;
++	int i;
++	int triggered = 0;
++	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wake);
++
++	rset = kmalloc(sizeof(*rset) + number_resources * sizeof(struct kds_link), GFP_KERNEL);
++	if (!rset)
++		return rset;
++
++	rset->num_resources = number_resources;
++	rset->pending = number_resources;
++	init_waitqueue_head(&rset->wake);
++	INIT_LIST_HEAD(&rset->callback_link);
++	INIT_WORK(&rset->callback_work, kds_queued_callback);
++	atomic_set(&rset->cb_queued, 0);
++	kref_init(&rset->refcount);
++
++	spin_lock_irqsave(&kds_lock, lflags);
++
++	for (i = 0; i < number_resources; i++)
++	{
++		unsigned long link_state = 0;
++
++		if (test_bit(i, exclusive_access_bitmap))
++		{
++			link_state |= KDS_LINK_EXCLUSIVE;
++		}
++
++		if (list_empty(&resource_list[i]->waiters.link))
++		{
++			link_state |= KDS_LINK_TRIGGERED;
++			rset->pending--;
++		}
++		/* Adding a non-exclusive and the current tail is a triggered non-exclusive? */
++		else if (((link_state & KDS_LINK_EXCLUSIVE) == 0) &&
++				(((list_entry(resource_list[i]->waiters.link.prev, struct kds_link, link)->state & (KDS_LINK_EXCLUSIVE | KDS_LINK_TRIGGERED)) == KDS_LINK_TRIGGERED)))
++		{
++			link_state |= KDS_LINK_TRIGGERED;
++			rset->pending--;
++		}
++
++		INIT_LIST_HEAD(&rset->resources[i].link);
++		rset->resources[i].parent = rset;
++		rset->resources[i].state = link_state;
++
++		/* avoid double wait (hang) */
++		if (!list_empty(&resource_list[i]->waiters.link))
++		{
++			/* adding same rset again? */
++			if (list_entry(resource_list[i]->waiters.link.prev, struct kds_link, link)->parent == rset)
++			{
++				goto roll_back;
++			}
++		}
++
++		list_add_tail(&rset->resources[i].link, &resource_list[i]->waiters.link);
++	}
++
++	if (rset->pending == 0)
++		triggered = 1;
++	else
++	{
++		rset->cb = &sync_cb;
++		rset->callback_parameter = &rset->wake;
++		rset->callback_extra_parameter = NULL;
++	}
++
++	spin_unlock_irqrestore(&kds_lock, lflags);
++
++	if (!triggered)
++	{
++		long wait_res = 0;
++		long timeout = (jiffies_timeout == KDS_WAIT_BLOCKING) ?
++				MAX_SCHEDULE_TIMEOUT : jiffies_timeout;
++
++		if (timeout)
++		{
++			wait_res = wait_event_interruptible_timeout(rset->wake,
++					rset->pending == 0, timeout);
++		}
++
++		if ((wait_res == -ERESTARTSYS) || (wait_res == 0))
++		{
++			/* use \a kds_resource_set_release to roll back */
++			kds_resource_set_release(&rset);
++			return ERR_PTR(wait_res);
++		}
++	}
++	return rset;
++
++roll_back:
++	/* roll back */
++	while (i-- > 0)
++	{
++		list_del(&rset->resources[i].link);
++	}
++
++	spin_unlock_irqrestore(&kds_lock, lflags);
++	kfree(rset);
++	return ERR_PTR(-EINVAL);
++}
++EXPORT_SYMBOL(kds_waitall);
++
++static void trigger_new_rset_owner(struct kds_resource_set *rset,
++		struct list_head *triggered)
++{
++	if (0 == --rset->pending) {
++		/* new owner now triggered, track for callback later */
++		kref_get(&rset->refcount);
++		list_add(&rset->callback_link, triggered);
++	}
++}
++
++static void __kds_resource_set_release_common(struct kds_resource_set *rset)
++{
++	struct list_head triggered = LIST_HEAD_INIT(triggered);
++	struct kds_resource_set *it;
++	unsigned long lflags;
++	int i;
++
++	spin_lock_irqsave(&kds_lock, lflags);
++
++	for (i = 0; i < rset->num_resources; i++)
++	{
++		struct kds_resource *resource;
++		struct kds_link *it = NULL;
++
++		/* fetch the previous entry on the linked list */
++		it = list_entry(rset->resources[i].link.prev, struct kds_link, link);
++		/* unlink ourself */
++		list_del(&rset->resources[i].link);
++
++		/* any waiters? */
++		if (list_empty(&it->link))
++			continue;
++
++		/* were we the head of the list? (head if prev is a resource) */
++		if (it->parent != KDS_RESOURCE)
++		{
++			if ((it->state & KDS_LINK_TRIGGERED) && !(it->state & KDS_LINK_EXCLUSIVE))
++			{
++				/*
++				 * previous was triggered and not exclusive, so we
++				 * trigger non-exclusive until end-of-list or first
++				 * exclusive
++				 */
++
++				struct kds_link *it_waiting = it;
++
++				list_for_each_entry(it, &it_waiting->link, link)
++				{
++					/* exclusive found, stop triggering */
++					if (it->state & KDS_LINK_EXCLUSIVE)
++						break;
++
++					it->state |= KDS_LINK_TRIGGERED;
++					/* a parent to update? */
++					if (it->parent != KDS_RESOURCE)
++						trigger_new_rset_owner(
++								it->parent,
++								&triggered);
++				}
++			}
++			continue;
++		}
++
++		/* we were the head, find the kds_resource */
++		resource = container_of(it, struct kds_resource, waiters);
++
++		/* we know there is someone waiting from the any-waiters test above */
++
++		/* find the head of the waiting list */
++		it = list_first_entry(&resource->waiters.link, struct kds_link, link);
++
++		/* new exclusive owner? */
++		if (it->state & KDS_LINK_EXCLUSIVE)
++		{
++			/* link now triggered */
++			it->state |= KDS_LINK_TRIGGERED;
++			/* a parent to update? */
++			trigger_new_rset_owner(it->parent, &triggered);
++		}
++		/* exclusive releasing ? */
++		else if (rset->resources[i].state & KDS_LINK_EXCLUSIVE)
++		{
++			/* trigger non-exclusive until end-of-list or first exclusive */
++			list_for_each_entry(it, &resource->waiters.link, link)
++			{
++				/* exclusive found, stop triggering */
++				if (it->state & KDS_LINK_EXCLUSIVE)
++					break;
++
++				it->state |= KDS_LINK_TRIGGERED;
++				/* a parent to update? */
++				trigger_new_rset_owner(it->parent, &triggered);
++			}
++		}
++	}
++
++	spin_unlock_irqrestore(&kds_lock, lflags);
++
++	while (!list_empty(&triggered))
++	{
++		it = list_first_entry(&triggered, struct kds_resource_set, callback_link);
++		list_del(&it->callback_link);
++		kds_callback_perform(it);
++
++		/* Free the resource set if no callbacks pending */
++		kref_put(&it->refcount, &__resource_set_release);
++	}
++}
++
++void kds_resource_set_release(struct kds_resource_set **pprset)
++{
++	struct kds_resource_set *rset;
++	int queued;
++
++	rset = cmpxchg(pprset, *pprset, NULL);
++
++	if (!rset)
++	{
++		/* caught a race between a cancelation
++		 * and a completion, nothing to do */
++		return;
++	}
++
++	__kds_resource_set_release_common(rset);
++
++	/*
++	 * Caller is responsible for guaranteeing that callback work is not
++	 * pending (i.e. its running or completed) prior to calling release.
++	 */
++	queued = atomic_read(&rset->cb_queued);
++	BUG_ON(queued);
++
++	kref_put(&rset->refcount, &__resource_set_release);
++}
++EXPORT_SYMBOL(kds_resource_set_release);
++
++void kds_resource_set_release_sync(struct kds_resource_set **pprset)
++{
++	struct kds_resource_set *rset;
++
++	rset = cmpxchg(pprset, *pprset, NULL);
++	if (!rset)
++	{
++		/* caught a race between a cancelation
++		 * and a completion, nothing to do */
++		return;
++	}
++
++	__kds_resource_set_release_common(rset);
++
++	/*
++	 * In the case of a kds async wait cancellation ensure the deferred
++	 * call back does not get scheduled if a trigger fired at the same time
++	 * to release the wait.
++	 */
++	cancel_work_sync(&rset->callback_work);
++
++	kref_put(&rset->refcount, &__resource_set_release);
++}
++EXPORT_SYMBOL(kds_resource_set_release_sync);
++
++MODULE_LICENSE("GPL");
++MODULE_AUTHOR("ARM Ltd.");
++MODULE_VERSION("1.0");
+diff --git a/driver/product/kernel/drivers/base/kds/sconscript b/driver/product/kernel/drivers/base/kds/sconscript
+new file mode 100755
+index 0000000..88b5e87
+--- /dev/null
++++ b/driver/product/kernel/drivers/base/kds/sconscript
+@@ -0,0 +1,41 @@
++#
++# (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
++#
++# This program is free software and is provided to you under the terms of the
++# GNU General Public License version 2 as published by the Free Software
++# Foundation, and any use by you of this program is subject to the terms
++# of such GNU licence.
++#
++# A copy of the licence is included with the program, and can also be obtained
++# from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
++# Boston, MA  02110-1301, USA.
++#
++#
++
++
++Import('env')
++
++#Android uses sync_pt to accomplish KDS functionality.
++#Midgard KDS is not used by Android
++if env['os'] == 'android':
++    Return()
++
++if Glob('tests/sconscript'):
++    SConscript('tests/sconscript')
++
++# If KDS is built into the kernel already we skip building the module ourselves
++build_kds = not env.KernelConfigEnabled("CONFIG_KDS")
++
++# Build KDS module
++if build_kds:
++    kds_mod = env.BuildKernelModule('$STATIC_LIB_PATH/kds.ko', ['kds.c'])
++    env.KernelObjTarget('kds', kds_mod)
++
++# Build KDS test module
++if int(env['unit']) == 1:
++    kds_test_mod = env.BuildKernelModule('$STATIC_LIB_PATH/kds_test.ko',
++                                         ['tests/kds_test.c'],
++                                         M=Dir("#kernel/drivers/base/kds/tests").abspath)
++    env.KernelObjTarget('kds', kds_test_mod)
++    if build_kds:
++        env.Depends(kds_test_mod, kds_mod)
+diff --git a/driver/product/kernel/drivers/base/sconscript b/driver/product/kernel/drivers/base/sconscript
+old mode 100644
+new mode 100755
+index 46f5241..b3f0395
+--- a/driver/product/kernel/drivers/base/sconscript
++++ b/driver/product/kernel/drivers/base/sconscript
+@@ -19,22 +19,15 @@ if Glob('bus_logger/sconscript'):
+ 	if env['buslog'] == '1':
+ 		SConscript('bus_logger/sconscript')
+ 
+-if Glob('mali_fpga_sysctl/sconscript'):
+-	SConscript('mali_fpga_sysctl/sconscript')
+-
+ if Glob('dma_buf_lock/sconscript'):
+ 	SConscript('dma_buf_lock/sconscript')
+ 
+-if Glob('ump/sconscript'):
+-	SConscript('ump/sconscript')
+-
+ if Glob('kds/sconscript'):
+ 	SConscript('kds/sconscript')
+ 
++if Glob('ump/sconscript'):
++	SConscript('ump/sconscript')
++
+ if Glob('dma_buf_test_exporter/sconscript'):
+ 	SConscript('dma_buf_test_exporter/sconscript')
+ 
+-if Glob('smc_protected_mode_switcher/sconscript'):
+-	if env['platform_config'] == 'juno_soc':
+-		SConscript('smc_protected_mode_switcher/sconscript')
+-
+diff --git a/driver/product/kernel/drivers/gpu/arm/Kbuild b/driver/product/kernel/drivers/gpu/arm/Kbuild
+old mode 100644
+new mode 100755
+index 19c7e9a..6b57900
+--- a/driver/product/kernel/drivers/gpu/arm/Kbuild
++++ b/driver/product/kernel/drivers/gpu/arm/Kbuild
+@@ -14,4 +14,4 @@
+ 
+ 
+ 
+-obj-$(CONFIG_MALI_MIDGARD) += midgard/
++obj-y += midgard/
+diff --git a/driver/product/kernel/drivers/gpu/arm/midgard/Kbuild b/driver/product/kernel/drivers/gpu/arm/midgard/Kbuild
+old mode 100644
+new mode 100755
+index 4edc5da..fa95874
+--- a/driver/product/kernel/drivers/gpu/arm/midgard/Kbuild
++++ b/driver/product/kernel/drivers/gpu/arm/midgard/Kbuild
+@@ -17,10 +17,26 @@
+ # Driver version string which is returned to userspace via an ioctl
+ MALI_RELEASE_NAME ?= "r21p0-01rel0"
+ 
++ifeq ($(CFG_HI_EXPORT_FLAG),)
++    ifneq ($(srctree),)
++        KERNEL_DIR := $(srctree)
++	
++	SDK_DIR := $(KERNEL_DIR)/../../..
++    else    	
++        SDK_DIR := $(CURDIR)/../../../../../../../../..
++    endif
++
++
++endif
++
++#include $(src)/kbuild_flags
++
+ # Paths required for build
+-KBASE_PATH = $(src)
++CUR_DIR = $(src)/drivers/gpu/arm/midgard
++KBASE_PATH = $(src)
++$(warning "src=$(src)..............")
+ KBASE_PLATFORM_PATH = $(KBASE_PATH)/platform_dummy
+-UMP_PATH = $(src)/../../../base
++UMP_PATH = $(CUR_DIR)/../../../base
+ 
+ ifeq ($(CONFIG_MALI_ERROR_INJECT),y)
+ MALI_ERROR_INJECT_ON = 1
+@@ -168,5 +184,13 @@ mali_kbase-y += $(BACKEND:.c=.o)
+ ccflags-y += -I$(src)/backend/gpu
+ subdir-ccflags-y += -I$(src)/backend/gpu
+ 
++mali_kbase-y += \
++	platform/devicetree/mali_kbase_runtime_pm.o \
++	platform/devicetree/mali_kbase_config_devicetree.o \
++	platform/devicetree/mali_kbase_proc_helper.o \
++	platform/devicetree/mali_kbase_proc.o \
++	platform/devicetree/mali_kbase_avs.o
++ccflags-y += -I$(src)/platform/devicetree
++
+ # For kutf and mali_kutf_irq_latency_test
+ obj-$(CONFIG_MALI_KUTF) += tests/
+diff --git a/driver/product/kernel/drivers/gpu/arm/midgard/Makefile b/driver/product/kernel/drivers/gpu/arm/midgard/Makefile
+old mode 100644
+new mode 100755
+index b7b261a..ac65a02
+--- a/driver/product/kernel/drivers/gpu/arm/midgard/Makefile
++++ b/driver/product/kernel/drivers/gpu/arm/midgard/Makefile
+@@ -13,13 +13,29 @@
+ #
+ 
+ 
++ifeq ($(CFG_HI_EXPORT_FLAG),)
++    ifneq ($(srctree),)
++        KERNEL_DIR := $(srctree)
++
++        SDK_DIR := $(KERNEL_DIR)/../../..
++    else
++        SDK_DIR := $(CURDIR)/../../../../../../../../..
++    endif
++
++    include $(SDK_DIR)/base.mak
++endif
++
++#include $(src)/kbuild_flags
++
+ 
+ KDIR ?= /lib/modules/$(shell uname -r)/build
+ 
+ BUSLOG_PATH_RELATIVE = $(CURDIR)/../../../..
+-UMP_PATH_RELATIVE = $(CURDIR)/../../../base/ump
+ KBASE_PATH_RELATIVE = $(CURDIR)
+-EXTRA_SYMBOLS = $(UMP_PATH_RELATIVE)/src/Module.symvers
++KDS_PATH_RELATIVE = $(CURDIR)/../../../..
++
++SCONS_CFLAGS=-DMALI_GCC_WORKAROUND_MIDCOM_4598=0 -DCONFIG_KDS -DCONFIG_MALI_DEBUG -DCONFIG_MALI_TRACE_TIMELINE -DCONFIG_MALI_PLATFORM_DEVICETREE -DCONFIG_MALI_GATOR_SUPPORT 
++SCONS_CONFIGS=MALI_GCC_WORKAROUND_MIDCOM_4598=0 CONFIG_KDS=m CONFIG_MALI_MIDGARD=m CONFIG_MALI_DEBUG=y CONFIG_MALI_PLATFORM_DEVICETREE=y CONFIG_MALI_TRACE_TIMELINE=y CONFIG_MALI_GATOR_SUPPORT=y
+ 
+ ifeq ($(MALI_UNIT_TEST), 1)
+ 	EXTRA_SYMBOLS += $(KBASE_PATH_RELATIVE)/tests/internal/src/kernel_assert_module/linux/Module.symvers
+diff --git a/driver/product/kernel/drivers/gpu/arm/midgard/backend/gpu/mali_kbase_devfreq.c b/driver/product/kernel/drivers/gpu/arm/midgard/backend/gpu/mali_kbase_devfreq.c
+old mode 100644
+new mode 100755
+index e280322..f02ab6f
+--- a/driver/product/kernel/drivers/gpu/arm/midgard/backend/gpu/mali_kbase_devfreq.c
++++ b/driver/product/kernel/drivers/gpu/arm/midgard/backend/gpu/mali_kbase_devfreq.c
+@@ -13,7 +13,9 @@
+  *
+  */
+ 
+-
++#ifndef MIDGARD_HISILICON_PLUGIN
++#define MIDGARD_HISILICON_PLUGIN
++#endif
+ 
+ #include <mali_kbase.h>
+ #include <mali_kbase_tlstream.h>
+@@ -43,6 +45,42 @@
+ #define dev_pm_opp_find_freq_floor opp_find_freq_floor
+ #endif /* Linux >= 3.13 */
+ 
++#ifdef MIDGARD_HISILICON_PLUGIN
++#include <mali_kbase_avs.h>
++#define HI_GPU_FREQ_MIN		200000000
++#define HI_GPU_FREQ_THRESHOLD	400000000
++
++static int
++kbase_devfreq_init_voltage(struct kbase_device *kbdev, unsigned long initial_freq)
++{
++	int err;
++	struct dev_pm_opp *opp;
++	unsigned long initial_voltage;
++
++	rcu_read_lock();
++	opp = devfreq_recommended_opp(kbdev->dev, &initial_freq, 0);
++	initial_voltage = dev_pm_opp_get_voltage(opp);
++	rcu_read_unlock();
++
++	initial_voltage = kbase_svb_reset_voltage(initial_freq, initial_voltage);
++
++#ifdef CONFIG_REGULATOR
++	if (kbdev->regulator) {
++		if(initial_voltage != regulator_get_voltage(kbdev->regulator)) {
++		err = regulator_set_voltage(kbdev->regulator, initial_voltage, initial_voltage);
++		if (err) {
++			dev_err(kbdev->dev, "Failed to increase voltage (%d)\n", err);
++			return err;
++			}
++		}
++	}
++	kbdev->current_voltage = initial_voltage;
++#endif
++	return 0;
++}
++#endif
++
++#ifndef MIDGARD_HISILICON_PLUGIN
+ /**
+  * opp_translate - Translate nominal OPP frequency from devicetree into real
+  *                 frequency and core mask
+@@ -73,40 +111,40 @@ static unsigned long opp_translate(struct kbase_device *kbdev,
+ 
+ 	return freq;
+ }
++#endif
+ 
+ static int
+ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
+ {
+ 	struct kbase_device *kbdev = dev_get_drvdata(dev);
+ 	struct dev_pm_opp *opp;
+-	unsigned long nominal_freq;
+ 	unsigned long freq = 0;
+ 	unsigned long voltage;
+ 	int err;
+-	u64 core_mask;
+ 
+ 	freq = *target_freq;
+ 
+ 	rcu_read_lock();
+ 	opp = devfreq_recommended_opp(dev, &freq, flags);
+ 	voltage = dev_pm_opp_get_voltage(opp);
++
++#ifdef MIDGARD_HISILICON_PLUGIN
++	voltage = kbase_svb_reset_voltage(freq, voltage);
++#endif
+ 	rcu_read_unlock();
+ 	if (IS_ERR_OR_NULL(opp)) {
+ 		dev_err(dev, "Failed to get opp (%ld)\n", PTR_ERR(opp));
+ 		return PTR_ERR(opp);
+ 	}
+ 
+-	nominal_freq = freq;
+-
+ 	/*
+ 	 * Only update if there is a change of frequency
+ 	 */
+-	if (kbdev->current_nominal_freq == nominal_freq) {
+-		*target_freq = nominal_freq;
++	if (kbdev->current_freq == freq) {
++		*target_freq = freq;
+ 		return 0;
+ 	}
+ 
+-	freq = opp_translate(kbdev, nominal_freq, &core_mask);
+ #ifdef CONFIG_REGULATOR
+ 	if (kbdev->regulator && kbdev->current_voltage != voltage
+ 			&& kbdev->current_freq < freq) {
+@@ -136,17 +174,11 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
+ 	}
+ #endif
+ 
+-	if (kbdev->pm.backend.ca_current_policy->id ==
+-			KBASE_PM_CA_POLICY_ID_DEVFREQ)
+-		kbase_devfreq_set_core_mask(kbdev, core_mask);
+-
+-	*target_freq = nominal_freq;
++	*target_freq = freq;
+ 	kbdev->current_voltage = voltage;
+-	kbdev->current_nominal_freq = nominal_freq;
+ 	kbdev->current_freq = freq;
+-	kbdev->current_core_mask = core_mask;
+ 
+-	KBASE_TLSTREAM_AUX_DEVFREQ_TARGET((u64)nominal_freq);
++	KBASE_TLSTREAM_AUX_DEVFREQ_TARGET((u64)freq);
+ 
+ 	kbase_pm_reset_dvfs_utilisation(kbdev);
+ 
+@@ -158,7 +190,7 @@ kbase_devfreq_cur_freq(struct device *dev, unsigned long *freq)
+ {
+ 	struct kbase_device *kbdev = dev_get_drvdata(dev);
+ 
+-	*freq = kbdev->current_nominal_freq;
++	*freq = kbdev->current_freq;
+ 
+ 	return 0;
+ }
+@@ -168,7 +200,7 @@ kbase_devfreq_status(struct device *dev, struct devfreq_dev_status *stat)
+ {
+ 	struct kbase_device *kbdev = dev_get_drvdata(dev);
+ 
+-	stat->current_frequency = kbdev->current_nominal_freq;
++	stat->current_frequency = kbdev->current_freq;
+ 
+ 	kbase_pm_get_dvfs_utilisation(kbdev,
+ 			&stat->total_time, &stat->busy_time);
+@@ -328,6 +360,9 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
+ 	dp->get_cur_freq = kbase_devfreq_cur_freq;
+ 	dp->exit = kbase_devfreq_exit;
+ 
++#ifdef MIDGARD_HISILICON_PLUGIN
++	kbase_devfreq_init_voltage(kbdev, dp->initial_freq);
++#endif
+ 	if (kbase_devfreq_init_freq_table(kbdev, dp))
+ 		return -EFAULT;
+ 
+@@ -411,3 +446,89 @@ void kbase_devfreq_term(struct kbase_device *kbdev)
+ 
+ 	kfree(kbdev->opp_table);
+ }
++
++#ifdef MIDGARD_HISILICON_PLUGIN
++static int
++kbase_devfreq_target2(struct device *dev, unsigned long *target_freq, u32 flags)
++{
++	struct kbase_device *kbdev = dev_get_drvdata(dev);
++	unsigned long freq = 0;
++	int err = -1;
++	freq = *target_freq;
++
++#ifdef CONFIG_HAVE_CLK
++	err = clk_set_rate(kbdev->clock, freq);
++	if (err) {
++		dev_err(dev, "Failed to set clock %lu (target %lu)\n",
++				freq, *target_freq);
++		return err;
++	}
++#endif
++	*target_freq = freq;
++	kbdev->current_freq = freq;
++	kbase_pm_reset_dvfs_utilisation(kbdev);
++	return err;
++}
++
++int kbase_devfreq_downscale(struct kbase_device *kbdev)
++{
++	int err;
++	unsigned long min_freq = HI_GPU_FREQ_MIN;
++
++	if(NULL == kbdev->devfreq)
++	{
++		return 0;
++	}
++
++	if(kbdev->current_freq <= HI_GPU_FREQ_THRESHOLD)
++	{
++		kbdev->saved_freq = kbdev->current_freq;
++		return 0;
++	}
++
++#if defined(CONFIG_PM_DEVFREQ) && \
++		(LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
++	devfreq_suspend_device(kbdev->devfreq);
++#endif
++
++	kbdev->saved_freq = kbdev->current_freq;
++
++	err = kbase_devfreq_target2(kbdev->dev, &min_freq, 0);
++	if(err)
++	{
++		dev_err(kbdev->dev, "Failed to set clock %lu  (%d)\n", min_freq, err);
++		return err;
++	}
++
++	return 0;
++}
++
++int kbase_devfreq_restore(struct kbase_device *kbdev)
++{
++	int err;
++
++ 	if(NULL == kbdev->devfreq)
++	{
++		return 0;
++	}
++
++	if(kbdev->saved_freq == kbdev->current_freq)
++	{
++		return 0;
++	}
++	err = kbase_devfreq_target(kbdev->dev, &kbdev->saved_freq, 0);
++
++	if(err)
++	{
++		dev_err(kbdev->dev, "Failed to set clock %lu\n", kbdev->saved_freq);
++		return err;
++	}
++
++#if defined(CONFIG_PM_DEVFREQ) && \
++		(LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
++	devfreq_resume_device(kbdev->devfreq);
++#endif
++
++	return 0;
++}
++#endif
+\ No newline at end of file
+diff --git a/driver/product/kernel/drivers/gpu/arm/midgard/backend/gpu/mali_kbase_devfreq.h b/driver/product/kernel/drivers/gpu/arm/midgard/backend/gpu/mali_kbase_devfreq.h
+old mode 100644
+new mode 100755
+index c0bf8b1..8339490
+--- a/driver/product/kernel/drivers/gpu/arm/midgard/backend/gpu/mali_kbase_devfreq.h
++++ b/driver/product/kernel/drivers/gpu/arm/midgard/backend/gpu/mali_kbase_devfreq.h
+@@ -12,8 +12,9 @@
+  * Boston, MA  02110-1301, USA.
+  *
+  */
+-
+-
++#ifndef MIDGARD_HISILICON_PLUGIN
++#define MIDGARD_HISILICON_PLUGIN
++#endif
+ 
+ #ifndef _BASE_DEVFREQ_H_
+ #define _BASE_DEVFREQ_H_
+@@ -21,4 +22,9 @@
+ int kbase_devfreq_init(struct kbase_device *kbdev);
+ void kbase_devfreq_term(struct kbase_device *kbdev);
+ 
++#ifdef MIDGARD_HISILICON_PLUGIN
++int kbase_devfreq_downscale(struct kbase_device *kbdev);
++int kbase_devfreq_restore(struct kbase_device *kbdev);
++#endif
++
+ #endif /* _BASE_DEVFREQ_H_ */
+diff --git a/driver/product/kernel/drivers/gpu/arm/midgard/backend/gpu/mali_kbase_pm_driver.c b/driver/product/kernel/drivers/gpu/arm/midgard/backend/gpu/mali_kbase_pm_driver.c
+old mode 100644
+new mode 100755
+index 26802e4..42ea69e
+--- a/driver/product/kernel/drivers/gpu/arm/midgard/backend/gpu/mali_kbase_pm_driver.c
++++ b/driver/product/kernel/drivers/gpu/arm/midgard/backend/gpu/mali_kbase_pm_driver.c
+@@ -13,7 +13,9 @@
+  *
+  */
+ 
+-
++#ifndef MIDGARD_HISILICON_PLUGIN
++#define MIDGARD_HISILICON_PLUGIN
++#endif
+ 
+ 
+ 
+@@ -37,6 +39,9 @@
+ #include <backend/gpu/mali_kbase_device_internal.h>
+ #include <backend/gpu/mali_kbase_irq_internal.h>
+ #include <backend/gpu/mali_kbase_pm_internal.h>
++#ifdef MIDGARD_HISILICON_PLUGIN
++#include <backend/gpu/mali_kbase_devfreq.h>
++#endif
+ 
+ #include <linux/of.h>
+ 
+@@ -231,7 +236,12 @@ static void kbase_pm_invoke(struct kbase_device *kbdev,
+ 				break;
+ 			}
+ 	}
+-
++#ifdef MIDGARD_HISILICON_PLUGIN
++	if((action == ACTION_PWROFF) && (core_type == KBASE_PM_CORE_L2))
++	{
++		return ;
++	}
++#endif
+ 	if (lo != 0)
+ 		kbase_reg_write(kbdev, GPU_CONTROL_REG(reg), lo, NULL);
+ 
+@@ -683,6 +693,10 @@ MOCKABLE(kbase_pm_check_transitions_nolock) (struct kbase_device *kbdev)
+ 			KBASE_PM_CORE_L2, desired_l2_state, l2_inuse_bitmap,
+ 			&l2_available_bitmap,
+ 			&kbdev->pm.backend.powering_on_l2_state);
++#ifdef MIDGARD_HISILICON_PLUGIN
++	/* Temporary fix to bypass checking L2 state reg */
++	in_desired_state = true;
++#endif
+ 
+ 	if (kbdev->l2_available_bitmap != l2_available_bitmap)
+ 		KBASE_TIMELINE_POWER_L2(kbdev, l2_available_bitmap);
+@@ -1470,6 +1484,13 @@ int kbase_pm_init_hw(struct kbase_device *kbdev, unsigned int flags)
+ 	int err;
+ 	bool resume_vinstr = false;
+ 
++#ifdef MIDGARD_HISILICON_PLUGIN
++	if(kbase_devfreq_downscale(kbdev) < 0)
++	{
++		return 0;
++	}
++#endif
++
+ 	KBASE_DEBUG_ASSERT(NULL != kbdev);
+ 	lockdep_assert_held(&kbdev->pm.lock);
+ 
+@@ -1568,6 +1589,10 @@ int kbase_pm_init_hw(struct kbase_device *kbdev, unsigned int flags)
+ 		kbase_pm_enable_interrupts(kbdev);
+ 
+ exit:
++#ifdef MIDGARD_HISILICON_PLUGIN
++	kbase_devfreq_restore(kbdev);
++#endif
++
+ 	/* If GPU is leaving protected mode resume vinstr operation. */
+ 	if (kbdev->vinstr_ctx && resume_vinstr)
+ 		kbase_vinstr_resume(kbdev->vinstr_ctx);
+diff --git a/driver/product/kernel/drivers/gpu/arm/midgard/mali_kbase_defs.h b/driver/product/kernel/drivers/gpu/arm/midgard/mali_kbase_defs.h
+old mode 100644
+new mode 100755
+index 09415b3..f8fa3c7
+--- a/driver/product/kernel/drivers/gpu/arm/midgard/mali_kbase_defs.h
++++ b/driver/product/kernel/drivers/gpu/arm/midgard/mali_kbase_defs.h
+@@ -13,7 +13,9 @@
+  *
+  */
+ 
+-
++#ifndef MIDGARD_HISILICON_PLUGIN
++#define MIDGARD_HISILICON_PLUGIN
++#endif
+ 
+ 
+ 
+@@ -1112,6 +1114,9 @@ struct kbase_device {
+ 	unsigned long current_freq;
+ 	unsigned long current_nominal_freq;
+ 	unsigned long current_voltage;
++#ifdef MIDGARD_HISILICON_PLUGIN
++	unsigned long saved_freq;
++#endif
+ 	u64 current_core_mask;
+ 	struct kbase_devfreq_opp *opp_table;
+ 	int num_opps;
+diff --git a/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/Kbuild b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/Kbuild
+old mode 100644
+new mode 100755
+index d40d798..b43129a
+--- a/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/Kbuild
++++ b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/Kbuild
+@@ -15,4 +15,7 @@
+ 
+ mali_kbase-y += \
+ 	$(MALI_PLATFORM_DIR)/mali_kbase_config_devicetree.o \
+-	$(MALI_PLATFORM_DIR)/mali_kbase_runtime_pm.o
++	$(MALI_PLATFORM_DIR)/mali_kbase_runtime_pm.o \
++	$(MALI_PLATFORM_DIR)/mali_kbase_proc_helper.o \
++	$(MALI_PLATFORM_DIR)/mali_kbase_proc.o \
++	$(MALI_PLATFORM_DIR)/mali_kbase_avs.o
+diff --git a/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_avs.c b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_avs.c
+new file mode 100755
+index 0000000..86e20e4
+--- /dev/null
++++ b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_avs.c
+@@ -0,0 +1,184 @@
++#include <mali_kbase_avs.h>
++#include <types.h>
++#include <io.h>
++#include <mali_kbase_config_platform.h>
++
++#define KBASE_OPP_COUNT             6
++
++#define KBASE_HISI_GPU_PMC_BASE		0xf8a23000
++#define KBASE_HISI_GPU_PMC_SIZE		0x200
++
++static int s_avs_enable = 0;
++
++typedef enum
++{
++	KBASE_HISI_PMC_HPM1_CTRL			= 0x0068,
++	KBASE_HISI_PMC_HPM1_RECORD1			= 0x006c,
++	KBASE_HISI_PMC_HPM1_RECORD2			= 0x0070,
++	KBASE_HISI_PMC_HPM1_MONITOR			= 0x0074
++} KBASE_HISI_PMC;
++
++static volatile u32* g_pu32PMCBase = NULL;
++
++
++typedef struct FREQ_TABLE
++{
++    unsigned long freq;              /* unit: HZ */
++    unsigned long volt;              /* unit: uV */
++} FREQ_TABLE;
++
++FREQ_TABLE alternative_freq_table_S3[KBASE_OPP_COUNT]=
++{
++    {200000000, 900000},
++    {300000000, 900000},
++    {400000000, 900000},
++    {500000000, 900000},
++    {600000000, 930000},
++    {675000000, 1000000},
++};
++
++FREQ_TABLE alternative_freq_table_F3[KBASE_OPP_COUNT]=
++{
++    {200000000, 850000},
++    {300000000, 850000},
++    {400000000, 850000},
++    {500000000, 850000},
++    {600000000, 880000},
++    {675000000, 920000},
++};
++
++static int kbase_write_pmc_reg(u32 reg, u32 value)
++{
++	*(g_pu32PMCBase +  (reg >> 2)) = value;
++	return 0;
++}
++
++static int kbase_read_pmc_reg(u32 reg)
++{
++	return *(g_pu32PMCBase +  (reg >> 2));
++}
++
++/**
++ *
++ * Initialize avs.
++ *
++ */
++int kbase_avs_init(void)
++{
++    u32 regval;
++
++    g_pu32PMCBase = (volatile u32*)ioremap_nocache(KBASE_HISI_GPU_PMC_BASE,  KBASE_HISI_GPU_PMC_SIZE);
++
++    if(NULL == g_pu32PMCBase)
++    {
++        printk(KERN_ERR "Init pmc failed\n");
++        return -1;
++    }
++
++
++    /* set monitor period to 4ms */
++    regval = kbase_read_pmc_reg(KBASE_HISI_PMC_HPM1_MONITOR);
++    regval &= 0x00ffffff;
++    regval |= (1 << 24);
++    kbase_write_pmc_reg(KBASE_HISI_PMC_HPM1_MONITOR, regval);
++
++    /* hpm enable */
++    regval = kbase_read_pmc_reg(KBASE_HISI_PMC_HPM1_CTRL);
++    regval |= (1 << 24);
++    kbase_write_pmc_reg(KBASE_HISI_PMC_HPM1_CTRL, regval);
++
++    /* hpm monitor enable */
++    regval = kbase_read_pmc_reg(KBASE_HISI_PMC_HPM1_CTRL);
++    regval |= (1 << 26);
++    kbase_write_pmc_reg(KBASE_HISI_PMC_HPM1_CTRL, regval);
++
++    return 0;
++}
++
++int kbase_avs_deinit(void)
++{
++    if(NULL != g_pu32PMCBase)
++    {
++        iounmap(g_pu32PMCBase);
++        return 0;
++    }
++
++    return 0;
++}
++
++
++int kbase_avs_sethpm(int gpufreq)
++{
++    if(s_avs_enable)
++    {
++        u32 regval;
++
++        int div = gpufreq / 50000;
++        if ((gpufreq - div * 50000) >= 25000)
++        {
++            div += 1;
++        }
++
++        div -= 1;
++
++        /* set time division */
++        regval = kbase_read_pmc_reg(KBASE_HISI_PMC_HPM1_CTRL);
++        regval &= 0xffffffc0;
++        regval |= div;
++        kbase_write_pmc_reg(KBASE_HISI_PMC_HPM1_CTRL, regval);
++    }
++
++    return 0;
++}
++
++int kbase_avs_start(int gpufreq)
++{
++	return 0;
++}
++
++
++int kbase_avs_enable(int enable)
++{
++    s_avs_enable = enable;
++    return 0;
++}
++
++int kbase_avs_status()
++{
++    return s_avs_enable;
++}
++
++unsigned long kbase_svb_reset_voltage(unsigned long freq, unsigned long voltage)
++{
++#if defined(CHIP_TYPE_hi3798cv200)
++    int i;
++	int svb_type = kbase_svb_identify();
++
++    /* SVB Type S3 */
++    if(KBASE_CHIP_TYPE_SS == svb_type)
++    {
++        for(i = 0; i < KBASE_OPP_COUNT; i++)
++        {
++            if(freq == alternative_freq_table_S3[i].freq)
++            {
++                voltage = alternative_freq_table_S3[i].volt;
++                return voltage;
++            }
++        }
++    }
++
++    /* SVB Type F3 */
++    if(KBASE_CHIP_TYPE_FF == svb_type)
++    {
++        for(i = 0; i < KBASE_OPP_COUNT; i++)
++        {
++            if(freq == alternative_freq_table_F3[i].freq)
++            {
++                voltage = alternative_freq_table_F3[i].volt;
++                return voltage;
++            }
++        }
++    }
++#endif
++    return voltage;
++}
+diff --git a/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_avs.h b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_avs.h
+new file mode 100755
+index 0000000..edd9b38
+--- /dev/null
++++ b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_avs.h
+@@ -0,0 +1,20 @@
++#ifndef __MALI_KBASE_AVS_H__
++#define __MALI_KBASE_AVS_H__
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++int kbase_avs_init(void);
++int kbase_avs_deinit(void);
++int kbase_avs_sethpm(int freq_khz);
++int kbase_avs_start(int freq_khz);
++int kbase_avs_enable(int enable);
++int kbase_avs_status(void);
++unsigned long kbase_svb_reset_voltage(unsigned long freq, unsigned long voltage);
++
++#ifdef __cplusplus
++}
++#endif
++#endif
++
+diff --git a/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_config_devicetree.c b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_config_devicetree.c
+old mode 100644
+new mode 100755
+index 299d0e7..f114eea
+--- a/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_config_devicetree.c
++++ b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_config_devicetree.c
+@@ -1,6 +1,6 @@
+ /*
+  *
+- * (C) COPYRIGHT 2015, 2017 ARM Limited. All rights reserved.
++ * (C) COPYRIGHT 2015 ARM Limited. All rights reserved.
+  *
+  * This program is free software and is provided to you under the terms of the
+  * GNU General Public License version 2 as published by the Free Software
+@@ -15,28 +15,69 @@
+ 
+ 
+ 
+-#include <mali_kbase_config.h>
++#include <linux/of.h>
++#include <linux/of_platform.h>
++#ifdef CONFIG_DEVFREQ_THERMAL
++#include <linux/devfreq_cooling.h>
++#endif
++#include <linux/thermal.h>
+ 
+-int kbase_platform_early_init(void)
++#include <mali_kbase.h>
++#include <mali_kbase_proc.h>
++#ifdef MALI_AVS_SUPPORT
++#include <mali_kbase_avs.h>
++#endif
++#include <mali_kbase_proc.h>
++#include <mali_kbase_config_platform.h>
++
++
++#define KBASE_HISI_GPU_SVB_BASE     0xf8000000
++#define KBASE_HISI_GPU_SVB_SIZE		0x100
++#define KBASE_HISI_GPU_SVB_OFFSET   0xc4
++
++static u32 s_svb_type = 0;
++
++static int kbase_platform_svb_identify(void)
+ {
+-	/* Nothing needed at this stage */
+-	return 0;
++    volatile u32* pu32SVBBase = (u32*)ioremap_nocache(KBASE_HISI_GPU_SVB_BASE,  KBASE_HISI_GPU_SVB_SIZE);
++
++    s_svb_type = *(pu32SVBBase +  (KBASE_HISI_GPU_SVB_OFFSET >> 2));
++    s_svb_type = (s_svb_type >> 24) & 0xff;
++
++    iounmap(pu32SVBBase);
++
++    if((s_svb_type != KBASE_CHIP_TYPE_FF) && (s_svb_type != KBASE_CHIP_TYPE_TT) && (s_svb_type != KBASE_CHIP_TYPE_SS))
++    {
++        printk("Unidentified SVB type 0x%x!\n", s_svb_type);
++        s_svb_type = KBASE_CHIP_TYPE_SS;
++    }
++
++    return 0;
+ }
+ 
+-static struct kbase_platform_config dummy_platform_config;
++int kbase_svb_identify(void)
++{
++    return s_svb_type;
++}
+ 
+-struct kbase_platform_config *kbase_get_platform_config(void)
++int kbase_platform_early_init(void)
+ {
+-	return &dummy_platform_config;
++	kbase_platform_svb_identify();
++	return 0;
+ }
+ 
+-#ifndef CONFIG_OF
+-int kbase_platform_register(void)
++static int platform_callback_init(struct kbase_device *kbdev)
+ {
++	kbase_proc_create();
+ 	return 0;
+ }
+ 
+-void kbase_platform_unregister(void)
++static void platform_callback_term(struct kbase_device *kbdev)
+ {
++	kbase_proc_destroy();
+ }
+-#endif
++
++struct kbase_platform_funcs_conf platform_callbacks = {
++	.platform_init_func = platform_callback_init,
++	.platform_term_func = platform_callback_term
++};
+diff --git a/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_config_platform.h b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_config_platform.h
+old mode 100644
+new mode 100755
+index 2ceca34..0aaeed0
+--- a/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_config_platform.h
++++ b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_config_platform.h
+@@ -1,6 +1,6 @@
+ /*
+  *
+- * (C) COPYRIGHT 2014-2017 ARM Limited. All rights reserved.
++ * (C) COPYRIGHT 2014-2015 ARM Limited. All rights reserved.
+  *
+  * This program is free software and is provided to you under the terms of the
+  * GNU General Public License version 2 as published by the Free Software
+@@ -68,9 +68,20 @@
+  * Attached value: pointer to @ref kbase_platform_funcs_conf
+  * Default value: See @ref kbase_platform_funcs_conf
+  */
+-#define PLATFORM_FUNCS (NULL)
++#define PLATFORM_FUNCS (&platform_callbacks)
++
++/** Power model for IPA
++ *
++ * Attached value: pointer to @ref mali_pa_model_ops
++ */
++#ifdef CONFIG_DEVFREQ_THERMAL
++#define POWER_MODEL_CALLBACKS (&hisilicon_model_ops)
++#else
++#define POWER_MODEL_CALLBACKS (NULL)
++#endif
+ 
+ extern struct kbase_pm_callback_conf pm_callbacks;
++extern struct kbase_platform_funcs_conf platform_callbacks;
+ 
+ /**
+  * Autosuspend delay
+@@ -78,3 +89,17 @@ extern struct kbase_pm_callback_conf pm_callbacks;
+  * The delay time (in milliseconds) to be used for autosuspend
+  */
+ #define AUTO_SUSPEND_DELAY (100)
++
++
++#ifdef CONFIG_DEVFREQ_THERMAL
++extern struct devfreq_cooling_ops hisilicon_model_ops;
++#endif
++
++typedef enum
++{
++    KBASE_CHIP_TYPE_FF = 1,
++    KBASE_CHIP_TYPE_TT = 2,
++    KBASE_CHIP_TYPE_SS = 3,
++}KBASE_CHIP_TYPE;
++
++int kbase_svb_identify(void);
+diff --git a/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_proc.c b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_proc.c
+new file mode 100755
+index 0000000..f80cc84
+--- /dev/null
++++ b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_proc.c
+@@ -0,0 +1,379 @@
++#include <linux/clk.h>
++#include <linux/clkdev.h>
++#include <linux/kernel.h>
++/*#ifdef CONFIG_PROC_FS
++#include <linux/proc_fs.h>
++#endif*/
++#include <linux/proc_fs.h>
++#include <linux/seq_file.h>
++#include <asm/clkdev.h>
++#include <asm/uaccess.h>
++#include <asm/io.h>
++#include <asm/delay.h>
++
++#include "hi_drv_proc.h"
++#include "hi_osal.h"
++#include "mali_kbase_proc.h"
++#include <mali_kbase.h>
++#include <mali_kbase_defs.h>
++#include <mali_kbase_config.h>
++#include <mali_kbase_pm.h>
++#include <mali_kbase_config_platform.h>
++#include <mali_kbase_avs.h>
++
++#define GPU_CMD_MAX_NUM (2)
++#define GPU_CMD_MAX_CMD_LEN (32)
++#define GPU_CMD_MAX_VLAUE_LEN (32)
++#define GPU_CMD_AVS "avs"
++#define GPU_CMD_DVFS "dvfs"
++#define GPU_CMD_ON "on"
++#define GPU_CMD_OFF "off"
++#define GPU_CMD_VOLT "volt"
++#define GPU_CMD_FREQ "freq"
++#define GPU_CMD_HELP "help"
++#define GPU_CMD_WAKEUPRESET "reset"
++#define GPU_CMD_DEBUG "debug"
++#define GPU_CMD_ENTERSMARTSTANDBY "entersmart"
++#define GPU_CMD_QUITSMARTSTANDBY "quitsmart"
++
++
++typedef struct tagGPU_CMD_DATA_S
++{
++    HI_U8 aszCmd[GPU_CMD_MAX_CMD_LEN];
++    HI_U8 aszValue[GPU_CMD_MAX_VLAUE_LEN];
++} GPU_CMD_DATA_S;
++
++static GPU_CMD_DATA_S g_astGPUProcCmd[GPU_CMD_MAX_NUM];
++
++
++HI_U32 GPUParseValue(HI_U8* pu8Value)
++{
++    if (strlen(pu8Value) < 2)
++    {
++        return (HI_U32)simple_strtoul(pu8Value, HI_NULL, 10);
++    }
++    else
++    {
++        if ((pu8Value[0] == '0') && ((pu8Value[1] == 'x') || (pu8Value[1] == 'X')))
++        {
++            return (HI_U32)simple_strtoul(pu8Value, HI_NULL, 16);
++        }
++        else
++        {
++            return (HI_U32)simple_strtoul(pu8Value, HI_NULL, 10);
++        }
++    }
++}
++
++HI_S32 GPUParseCmd(HI_U8* pu8Cmd, HI_U32 u32Len, GPU_CMD_DATA_S** pstCmd, HI_U32* pu32Num)
++{
++    HI_U32 u32Pos = 0;
++    HI_U32 u32SavePos = 0;
++    HI_U32 u32CmdNum = 0;
++    HI_BOOL bIsCmd   = HI_TRUE;
++    HI_U8 u8LastChar = ' ';
++
++    if ((HI_NULL == pu8Cmd) || (0 == u32Len) || (HI_NULL == pstCmd) || (HI_NULL == pu32Num))
++    {
++        printk(KERN_ERR "Invalid.\n");
++        return HI_FAILURE;
++    }
++
++    u32CmdNum = 0;
++    memset(g_astGPUProcCmd, 0, sizeof(g_astGPUProcCmd));
++
++    while ((u32Pos < u32Len) && (pu8Cmd[u32Pos]))
++    {
++        switch (pu8Cmd[u32Pos])
++        {
++        case '\0':
++        case '\n':
++        case '\t':
++            break;
++
++        case '=':
++            if (bIsCmd)
++            {
++                bIsCmd = HI_FALSE;
++                u32SavePos = 0;
++            }
++
++            break;
++        case ' ':
++            if (!((' ' == u8LastChar) || ('=' == u8LastChar)))
++            {
++                bIsCmd = !bIsCmd;
++                u32SavePos = 0;
++                if (bIsCmd)
++                {
++                    if (u32CmdNum < GPU_CMD_MAX_NUM - 1)
++                    {
++                        u32CmdNum++;
++                    }
++                    else
++                    {
++                        goto out;
++                    }
++                }
++            }
++
++            break;
++        default:
++            if (bIsCmd)
++            {
++                if (u32SavePos < GPU_CMD_MAX_CMD_LEN)
++                {
++                    g_astGPUProcCmd[u32CmdNum].aszCmd[u32SavePos++] = pu8Cmd[u32Pos];
++                }
++            }
++            else
++            {
++                if (u32SavePos < GPU_CMD_MAX_VLAUE_LEN)
++                {
++                    g_astGPUProcCmd[u32CmdNum].aszValue[u32SavePos++] = pu8Cmd[u32Pos];
++                }
++            }
++
++            break;
++        }
++
++        u8LastChar = pu8Cmd[u32Pos];
++        u32Pos++;
++    }
++
++out:
++    if (strlen(g_astGPUProcCmd[u32CmdNum].aszCmd) > 0)
++    {
++        u32CmdNum += 1;
++    }
++
++    *pstCmd  = g_astGPUProcCmd;
++    *pu32Num = u32CmdNum;
++    return HI_SUCCESS;
++}
++
++HI_S32 GPUDebugCtrl(HI_U32 u32Para1, HI_U32 u32Para2)
++{
++	if ((0 == u32Para1) && (0 == u32Para2))
++	{
++		printk(KERN_ERR "plese set the valid value \n");
++		return HI_SUCCESS;
++	}
++#if 0
++	if(0 != u32Para1)
++	{
++		if(u32Para1 > kbase_get_max_frequency())
++		{
++			u32Para1 = kbase_get_max_frequency();
++		}
++		else if(u32Para1 < kbase_get_min_frequency())
++		{
++			u32Para1 = kbase_get_min_frequency();
++		}
++	}
++#endif
++	if (0 == u32Para2)
++	{
++		kbase_clk_set(u32Para1);
++		udelay(100);
++		/* printk("\nFrequency set to %d!\n", kbase_clk_get()); */
++
++		return HI_SUCCESS;
++	}
++
++	if (0 == u32Para1)
++	{
++		kbase_regulator_set(u32Para2);
++		printk("\nVoltage set to %d!\n", kbase_regulator_get());
++
++		return HI_SUCCESS;
++	}
++
++	kbase_opp_update(u32Para1, u32Para2);
++
++	kbase_clk_set(u32Para1);
++	kbase_regulator_set(u32Para2);
++    
++	return HI_SUCCESS;
++}
++
++#ifdef HI_PROC_SUPPORT
++static HI_S32 GPUProcRead(struct seq_file *p, HI_VOID *v)
++{
++    PROC_PRINT(p, "---------Hisilicon GPU Info---------\n");
++    PROC_PRINT(p, "Frequency			:%d(kHz)\n",kbase_clk_get());
++    PROC_PRINT(p, "Voltage				:%d(mv)\n", kbase_regulator_get());
++    PROC_PRINT(p, "Utilization			:%d(%%)\n", kbase_get_utilisation());
++
++	if (1 == kbase_power_status())
++	{
++		PROC_PRINT(p, "Power_status			:power up\n");
++	}
++	else
++	{
++		PROC_PRINT(p, "Power_status			:power down\n");
++	}
++
++	if (1 == kbase_dvfs_status())
++	{
++		PROC_PRINT(p, "DVFS_status			:on\n");
++	}
++	else
++	{
++		PROC_PRINT(p, "DVFS_status			:off\n");
++	}
++    
++	if (1 == kbase_avs_status())
++	{
++		PROC_PRINT(p, "AVS_status			:on\n");
++	}
++	else
++	{
++		PROC_PRINT(p, "AVS_status			:off\n");
++	}   
++	return 0;
++}
++
++static HI_VOID GPUProcHelper(HI_VOID)
++{
++    HI_DRV_PROC_EchoHelper(
++        "echo volt 1000 > /proc/msp/pm_gpu, set gpu volt in mv.\n"
++        "echo freq 400000 > /proc/msp/pm_gpu, set gpu freq in kHz.\n"
++        "echo dvfs on/off > /proc/msp/pm_gpu, open/close gpu dvfs.\n"
++        "echo avs on/off > /proc/msp/pm_gpu, open/close gpu avs.\n"
++        "echo 400000 1000 > /proc/msp/pm_gpu, set gpu volt and freq simultaneity.\n"
++    );
++
++    return;
++}
++
++static HI_S32 GPUProcWrite(struct file * file,
++                           const char __user * buf, size_t count, loff_t *ppos)
++{
++	HI_CHAR ProcPara[64] = {0};
++	HI_S32 s32Ret;
++	HI_U32 u32CmdNum = 0;
++	GPU_CMD_DATA_S* pstCmd = HI_NULL;
++
++	if(count > sizeof(ProcPara))
++	{
++		return -EFAULT;
++	}
++
++	if (copy_from_user(ProcPara, buf, count))
++	{
++		return -EFAULT;
++	}
++	s32Ret = GPUParseCmd(ProcPara, count, &pstCmd, &u32CmdNum);
++	if (HI_SUCCESS != s32Ret)
++	{
++		goto err;
++	}
++	if (1 == u32CmdNum)
++	{
++		/* Only set GPU volt */
++		if (0 == HI_OSAL_Strncasecmp(GPU_CMD_VOLT, pstCmd[0].aszCmd, strlen(pstCmd[0].aszCmd)))
++		{
++			GPUDebugCtrl(0, GPUParseValue(pstCmd[0].aszValue));
++		}
++		/* Only set GPU freq */
++		else if (0 == HI_OSAL_Strncasecmp(GPU_CMD_FREQ, pstCmd[0].aszCmd, strlen(pstCmd[0].aszCmd)))
++		{
++			GPUDebugCtrl(GPUParseValue(pstCmd[0].aszValue), 0);
++		}
++		else if (0 == HI_OSAL_Strncasecmp(GPU_CMD_DVFS, pstCmd[0].aszCmd, strlen(pstCmd[0].aszCmd)))
++		{
++		/* GPU DVFS ON */
++			if (0 == HI_OSAL_Strncasecmp(GPU_CMD_ON, pstCmd[0].aszValue, strlen(pstCmd[0].aszCmd)))
++			{
++				kbase_dvfs_enable(1);
++				printk("DVFS enabled!\n");
++			}
++		/* GPU DVFS OFF */
++			else if (0 == HI_OSAL_Strncasecmp(GPU_CMD_OFF, pstCmd[0].aszValue, strlen(pstCmd[0].aszCmd)))
++			{
++				kbase_dvfs_enable(0);
++				printk("DVFS disabled!\n");
++			}
++		}
++      
++		else if (0 == HI_OSAL_Strncasecmp(GPU_CMD_AVS, pstCmd[0].aszCmd, strlen(pstCmd[0].aszCmd)))
++        	{
++            /* GPU AVS ON */
++			if (0 == HI_OSAL_Strncasecmp(GPU_CMD_ON, pstCmd[0].aszValue, strlen(pstCmd[0].aszCmd)))
++            		{
++						kbase_avs_enable(1);
++						printk("AVS enabled!\n");
++            		}
++            /* GPU AVS OFF */
++            		else if (0 == HI_OSAL_Strncasecmp(GPU_CMD_OFF, pstCmd[0].aszValue, strlen(pstCmd[0].aszCmd)))
++            		{
++            			kbase_avs_enable(0);
++						printk("AVS disabled!\n");
++            		}
++		}
++      
++	/* Support 0xXXX 0xXXX command */
++		else /*if (('0' == pstCmd[0].aszCmd[0]) && ('0' == pstCmd[0].aszValue[0]))*/
++		{
++			GPUDebugCtrl(GPUParseValue(pstCmd[0].aszCmd), GPUParseValue(pstCmd[0].aszValue));
++		}
++
++	}
++
++	else if (2 == u32CmdNum)
++	{
++		if ((0 == HI_OSAL_Strncasecmp(GPU_CMD_VOLT, pstCmd[0].aszCmd, strlen(pstCmd[0].aszCmd)))
++			&& (0 == HI_OSAL_Strncasecmp(GPU_CMD_FREQ, pstCmd[1].aszCmd, strlen(pstCmd[1].aszCmd))))
++		{
++			GPUDebugCtrl(GPUParseValue(pstCmd[1].aszValue), GPUParseValue(pstCmd[0].aszValue));
++		}
++		else if ((0 == HI_OSAL_Strncasecmp(GPU_CMD_FREQ, pstCmd[0].aszCmd, strlen(pstCmd[0].aszCmd)))
++			&& (0 == HI_OSAL_Strncasecmp(GPU_CMD_VOLT, pstCmd[1].aszCmd, strlen(pstCmd[1].aszCmd))))
++		{
++			GPUDebugCtrl(GPUParseValue(pstCmd[0].aszValue), GPUParseValue(pstCmd[1].aszValue));
++		}
++		else
++		{
++			goto err;
++		}
++	}
++	else
++	{
++		goto err;
++	}
++
++    return count;
++
++err:
++    HI_DRV_PROC_EchoHelper("Invaid parameter.\n");
++    GPUProcHelper();
++    return count;
++}
++#endif
++
++int kbase_proc_create(void)
++{
++#ifdef HI_PROC_SUPPORT
++    DRV_PROC_ITEM_S *item;
++
++    item = HI_DRV_PROC_AddModule("pm_gpu", NULL, NULL);
++    if (!item)
++    {
++        printk(KERN_ERR "add GPU proc module failed\n");
++        return -1;
++    }
++
++    item->read = GPUProcRead;
++    item->write = GPUProcWrite;
++#endif
++    return 0;
++}
++
++int kbase_proc_destroy(void)
++{
++#ifdef HI_PROC_SUPPORT
++    HI_DRV_PROC_RemoveModule("pm_gpu");
++#endif
++    return 0;
++}
+diff --git a/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_proc.h b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_proc.h
+new file mode 100755
+index 0000000..fa4c3db
+--- /dev/null
++++ b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_proc.h
+@@ -0,0 +1,25 @@
++#ifndef __MALI_GPU_PROC_H__
++#define __MALI_GPU_PROC_H__
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++int kbase_proc_create(void);
++int kbase_proc_destroy(void);
++
++
++int kbase_regulator_get(void);
++int kbase_regulator_set(int voltage);
++int kbase_clk_get(void);
++int kbase_clk_set(int freq);
++int kbase_dvfs_enable(int enable);
++int kbase_dvfs_status(void);
++int kbase_opp_update(int freq, int voltage);
++int kbase_get_utilisation(void);
++int kbase_power_status(void);
++
++#ifdef __cplusplus
++}
++#endif
++#endif
+diff --git a/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_proc_helper.c b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_proc_helper.c
+new file mode 100755
+index 0000000..a991b1f
+--- /dev/null
++++ b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_proc_helper.c
+@@ -0,0 +1,177 @@
++#include <linux/of.h>
++#include <linux/of_platform.h>
++#ifdef CONFIG_DEVFREQ_THERMAL
++#include <linux/devfreq_cooling.h>
++#endif
++#include <linux/thermal.h>
++#ifdef CONFIG_PM_DEVFREQ
++#include <linux/devfreq.h>
++#endif
++
++#include <mali_kbase.h>
++
++#define UNIT    1000
++
++struct kbase_device *s_pkbdev = NULL;
++
++static int s_dvfs_enable = 1;
++
++#define DEVICE_ININT_CHECK \
++    do {\
++        if ( NULL == s_pkbdev) {\
++            kbase_get_device();\
++        }\
++    }while(0)
++
++int kbase_get_device(void)
++{
++#ifdef CONFIG_OF
++	struct device_node *np;
++	struct platform_device *pdev;
++
++	np = of_find_node_by_name(NULL, "gpu");
++	if (!np) {
++		pr_err("Failed to find DT entry for Mali\n");
++		return -EFAULT;
++	}
++
++	pdev = of_find_device_by_node(np);
++	if (!pdev) {
++		pr_err("Failed to find device for Mali\n");
++		of_node_put(np);
++		return -EFAULT;
++	}
++
++    s_pkbdev = dev_get_drvdata(&pdev->dev);
++
++	of_node_put(np);
++#endif
++	return 0;  
++}
++
++
++int kbase_regulator_get(void)
++{
++#ifdef CONFIG_REGULATOR
++    int voltage;    
++    DEVICE_ININT_CHECK;
++	
++	if (s_pkbdev->regulator) {
++		voltage = regulator_get_voltage(s_pkbdev->regulator);		
++		return voltage/UNIT;
++	}
++#endif
++    return 0;
++}
++
++int kbase_regulator_set(int voltage)
++{
++    int ret = 0;
++#ifdef CONFIG_REGULATOR
++    DEVICE_ININT_CHECK;
++	if (s_pkbdev->regulator) {
++		ret = regulator_set_voltage(s_pkbdev->regulator, voltage * UNIT, voltage * UNIT);
++	}    
++#endif
++	return ret;
++}
++
++int kbase_clk_get(void)
++{
++#ifdef CONFIG_HAVE_CLK
++    DEVICE_ININT_CHECK;
++    return (int) (clk_get_rate(s_pkbdev->clock)/UNIT);
++#else
++	return 0;
++#endif
++}
++
++int kbase_clk_set(int freq)
++{    
++#ifdef CONFIG_PM_DEVFREQ
++    int i = 0;
++    int current_freq;
++    DEVICE_ININT_CHECK;
++    current_freq = s_pkbdev->current_freq;
++
++    freq *= UNIT;
++    for(i = 0; i < s_pkbdev->devfreq_profile.max_state; i++) {
++        if(freq != s_pkbdev->devfreq_profile.freq_table[i]) {	
++		if(s_pkbdev->current_freq != s_pkbdev->devfreq_profile.freq_table[i]) {
++            		dev_pm_opp_disable(s_pkbdev->dev, s_pkbdev->devfreq_profile.freq_table[i]);
++		    }
++        }
++        else {
++            dev_pm_opp_enable(s_pkbdev->dev, s_pkbdev->devfreq_profile.freq_table[i]);
++        }
++    }
++    if(current_freq !=  freq)  {
++            	dev_pm_opp_disable(s_pkbdev->dev, current_freq);
++    }
++    s_dvfs_enable = 0;
++#endif
++    return 0;
++}
++
++int kbase_dvfs_enable(int enable)
++{
++#ifdef CONFIG_PM_DEVFREQ
++    int i = 0;
++    DEVICE_ININT_CHECK;
++
++    for(i = 0; i < s_pkbdev->devfreq_profile.max_state; i++) {
++        if(enable) {
++            dev_pm_opp_enable(s_pkbdev->dev, s_pkbdev->devfreq_profile.freq_table[i]);
++        } 
++        else {
++            if(s_pkbdev->current_freq != s_pkbdev->devfreq_profile.freq_table[i]) {
++                dev_pm_opp_disable(s_pkbdev->dev, s_pkbdev->devfreq_profile.freq_table[i]);
++            } else {
++                dev_pm_opp_enable(s_pkbdev->dev, s_pkbdev->devfreq_profile.freq_table[i]);
++            }
++        }
++    }
++
++    s_dvfs_enable = enable;
++#endif
++    return 0;
++}
++
++int kbase_dvfs_status(void)
++{
++    return s_dvfs_enable;
++}
++
++int kbase_opp_update(int freq, int voltage)
++{
++    int ret = 0;
++#ifdef CONFIG_PM_DEVFREQ
++    int i = 0;    
++    DEVICE_ININT_CHECK;
++
++    freq *= UNIT;
++    for(i = 0; i < s_pkbdev->devfreq_profile.max_state; i++) {
++        if(freq == s_pkbdev->devfreq_profile.freq_table[i]) {
++            dev_pm_opp_remove(s_pkbdev->dev, freq);
++
++            ret = dev_pm_opp_add(s_pkbdev->dev, freq, voltage * UNIT);
++            break;
++        } 
++    }
++#endif
++    return ret;
++}
++
++int kbase_get_utilisation(void)
++{
++#ifdef CONFIG_PM_DEVFREQ
++    unsigned int utilisation = 0;
++    struct devfreq_dev_status stat;
++
++    s_pkbdev->devfreq_profile.get_dev_status(s_pkbdev->dev, &stat);
++    utilisation = stat.busy_time * 100/stat.total_time;
++    return utilisation;
++#else
++    return 0;
++#endif
++}
+\ No newline at end of file
+diff --git a/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_runtime_pm.c b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_runtime_pm.c
+old mode 100644
+new mode 100755
+index 372420a..c70a6a6
+--- a/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_runtime_pm.c
++++ b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/mali_kbase_runtime_pm.c
+@@ -1,6 +1,6 @@
+ /*
+  *
+- * (C) COPYRIGHT 2015, 2017 ARM Limited. All rights reserved.
++ * (C) COPYRIGHT 2015 ARM Limited. All rights reserved.
+  *
+  * This program is free software and is provided to you under the terms of the
+  * GNU General Public License version 2 as published by the Free Software
+@@ -20,25 +20,23 @@
+ #include <linux/pm_runtime.h>
+ #include "mali_kbase_config_platform.h"
+ 
++#include <linux/suspend.h>
++#include <mali_kbase_proc.h>
++
++static int s_power_state = 0;
++
+ static int pm_callback_power_on(struct kbase_device *kbdev)
+ {
+-	int ret = 1; /* Assume GPU has been powered off */
+-	int error;
++	int ret;
+ 
+ 	dev_dbg(kbdev->dev, "pm_callback_power_on %p\n",
+ 			(void *)kbdev->dev->pm_domain);
+ 
+-	error = pm_runtime_get_sync(kbdev->dev);
+-	if (error == 1) {
+-		/*
+-		 * Let core know that the chip has not been
+-		 * powered off, so we can save on re-initialization.
+-		 */
+-		ret = 0;
+-	}
++	ret = pm_runtime_get_sync(kbdev->dev);
+ 
+-	dev_dbg(kbdev->dev, "pm_runtime_get_sync returned %d\n", error);
++	dev_dbg(kbdev->dev, "pm_runtime_get returned %d\n", ret);
+ 
++	s_power_state = 1;
+ 	return ret;
+ }
+ 
+@@ -48,6 +46,8 @@ static void pm_callback_power_off(struct kbase_device *kbdev)
+ 
+ 	pm_runtime_mark_last_busy(kbdev->dev);
+ 	pm_runtime_put_autosuspend(kbdev->dev);
++
++	s_power_state = 0;
+ }
+ 
+ #ifdef KBASE_PM_RUNTIME
+@@ -92,7 +92,13 @@ static void pm_callback_runtime_off(struct kbase_device *kbdev)
+ 
+ static void pm_callback_resume(struct kbase_device *kbdev)
+ {
+-	int ret = pm_callback_runtime_on(kbdev);
++	int ret;
++
++#ifdef CONFIG_HAVE_CLK
++	clk_enable(kbdev->clock); 
++#endif
++
++	ret = pm_callback_runtime_on(kbdev);
+ 
+ 	WARN_ON(ret);
+ }
+@@ -100,6 +106,10 @@ static void pm_callback_resume(struct kbase_device *kbdev)
+ static void pm_callback_suspend(struct kbase_device *kbdev)
+ {
+ 	pm_callback_runtime_off(kbdev);
++
++#ifdef CONFIG_HAVE_CLK
++	clk_disable(kbdev->clock);
++#endif
+ }
+ 
+ struct kbase_pm_callback_conf pm_callbacks = {
+@@ -120,4 +130,7 @@ struct kbase_pm_callback_conf pm_callbacks = {
+ #endif				/* KBASE_PM_RUNTIME */
+ };
+ 
+-
++int kbase_power_status()
++{
++	return s_power_state;
++}
+diff --git a/driver/product/kernel/include/linux/fb.h b/driver/product/kernel/include/linux/fb.h
+new file mode 100755
+index 0000000..50901d5
+--- /dev/null
++++ b/driver/product/kernel/include/linux/fb.h
+@@ -0,0 +1,413 @@
++#ifndef MIDGARD_HISILICON_PLUGIN
++#define MIDGARD_HISILICON_PLUGIN
++#endif
++
++#ifdef MIDGARD_HISILICON_PLUGIN
++#ifndef _UAPI_LINUX_FB_H
++#define _UAPI_LINUX_FB_H
++
++#include <linux/types.h>
++#include <linux/i2c.h>
++
++/* Definitions of frame buffers						*/
++
++#define FB_MAX			32	/* sufficient for now */
++
++/* ioctls
++   0x46 is 'F'								*/
++#define FBIOGET_VSCREENINFO	0x4600
++#define FBIOPUT_VSCREENINFO	0x4601
++#define FBIOGET_FSCREENINFO	0x4602
++#define FBIOGETCMAP		0x4604
++#define FBIOPUTCMAP		0x4605
++#define FBIOPAN_DISPLAY		0x4606
++#ifndef __KERNEL__
++#define FBIO_CURSOR            _IOWR('F', 0x08, struct fb_cursor)
++#endif
++/* 0x4607-0x460B are defined below */
++/* #define FBIOGET_MONITORSPEC	0x460C */
++/* #define FBIOPUT_MONITORSPEC	0x460D */
++/* #define FBIOSWITCH_MONIBIT	0x460E */
++#define FBIOGET_CON2FBMAP	0x460F
++#define FBIOPUT_CON2FBMAP	0x4610
++#define FBIOBLANK		0x4611		/* arg: 0 or vesa level + 1 */
++#define FBIOGET_VBLANK		_IOR('F', 0x12, struct fb_vblank)
++#define FBIO_ALLOC              0x4613
++#define FBIO_FREE               0x4614
++#define FBIOGET_GLYPH           0x4615
++#define FBIOGET_HWCINFO         0x4616
++#define FBIOPUT_MODEINFO        0x4617
++#define FBIOGET_DISPINFO        0x4618
++#define FBIO_WAITFORVSYNC	_IOW('F', 0x20, __u32)
++#define FBIOGET_DMABUF		_IOR('F', 0x21, struct fb_dmabuf_export)
++
++#define FB_TYPE_PACKED_PIXELS		0	/* Packed Pixels	*/
++#define FB_TYPE_PLANES			1	/* Non interleaved planes */
++#define FB_TYPE_INTERLEAVED_PLANES	2	/* Interleaved planes	*/
++#define FB_TYPE_TEXT			3	/* Text/attributes	*/
++#define FB_TYPE_VGA_PLANES		4	/* EGA/VGA planes	*/
++#define FB_TYPE_FOURCC			5	/* Type identified by a V4L2 FOURCC */
++
++#define FB_AUX_TEXT_MDA		0	/* Monochrome text */
++#define FB_AUX_TEXT_CGA		1	/* CGA/EGA/VGA Color text */
++#define FB_AUX_TEXT_S3_MMIO	2	/* S3 MMIO fasttext */
++#define FB_AUX_TEXT_MGA_STEP16	3	/* MGA Millenium I: text, attr, 14 reserved bytes */
++#define FB_AUX_TEXT_MGA_STEP8	4	/* other MGAs:      text, attr,  6 reserved bytes */
++#define FB_AUX_TEXT_SVGA_GROUP	8	/* 8-15: SVGA tileblit compatible modes */
++#define FB_AUX_TEXT_SVGA_MASK	7	/* lower three bits says step */
++#define FB_AUX_TEXT_SVGA_STEP2	8	/* SVGA text mode:  text, attr */
++#define FB_AUX_TEXT_SVGA_STEP4	9	/* SVGA text mode:  text, attr,  2 reserved bytes */
++#define FB_AUX_TEXT_SVGA_STEP8	10	/* SVGA text mode:  text, attr,  6 reserved bytes */
++#define FB_AUX_TEXT_SVGA_STEP16	11	/* SVGA text mode:  text, attr, 14 reserved bytes */
++#define FB_AUX_TEXT_SVGA_LAST	15	/* reserved up to 15 */
++
++#define FB_AUX_VGA_PLANES_VGA4		0	/* 16 color planes (EGA/VGA) */
++#define FB_AUX_VGA_PLANES_CFB4		1	/* CFB4 in planes (VGA) */
++#define FB_AUX_VGA_PLANES_CFB8		2	/* CFB8 in planes (VGA) */
++
++#define FB_VISUAL_MONO01		0	/* Monochr. 1=Black 0=White */
++#define FB_VISUAL_MONO10		1	/* Monochr. 1=White 0=Black */
++#define FB_VISUAL_TRUECOLOR		2	/* True color	*/
++#define FB_VISUAL_PSEUDOCOLOR		3	/* Pseudo color (like atari) */
++#define FB_VISUAL_DIRECTCOLOR		4	/* Direct color */
++#define FB_VISUAL_STATIC_PSEUDOCOLOR	5	/* Pseudo color readonly */
++#define FB_VISUAL_FOURCC		6	/* Visual identified by a V4L2 FOURCC */
++
++#define FB_ACCEL_NONE		0	/* no hardware accelerator	*/
++#define FB_ACCEL_ATARIBLITT	1	/* Atari Blitter		*/
++#define FB_ACCEL_AMIGABLITT	2	/* Amiga Blitter                */
++#define FB_ACCEL_S3_TRIO64	3	/* Cybervision64 (S3 Trio64)    */
++#define FB_ACCEL_NCR_77C32BLT	4	/* RetinaZ3 (NCR 77C32BLT)      */
++#define FB_ACCEL_S3_VIRGE	5	/* Cybervision64/3D (S3 ViRGE)	*/
++#define FB_ACCEL_ATI_MACH64GX	6	/* ATI Mach 64GX family		*/
++#define FB_ACCEL_DEC_TGA	7	/* DEC 21030 TGA		*/
++#define FB_ACCEL_ATI_MACH64CT	8	/* ATI Mach 64CT family		*/
++#define FB_ACCEL_ATI_MACH64VT	9	/* ATI Mach 64CT family VT class */
++#define FB_ACCEL_ATI_MACH64GT	10	/* ATI Mach 64CT family GT class */
++#define FB_ACCEL_SUN_CREATOR	11	/* Sun Creator/Creator3D	*/
++#define FB_ACCEL_SUN_CGSIX	12	/* Sun cg6			*/
++#define FB_ACCEL_SUN_LEO	13	/* Sun leo/zx			*/
++#define FB_ACCEL_IMS_TWINTURBO	14	/* IMS Twin Turbo		*/
++#define FB_ACCEL_3DLABS_PERMEDIA2 15	/* 3Dlabs Permedia 2		*/
++#define FB_ACCEL_MATROX_MGA2064W 16	/* Matrox MGA2064W (Millenium)	*/
++#define FB_ACCEL_MATROX_MGA1064SG 17	/* Matrox MGA1064SG (Mystique)	*/
++#define FB_ACCEL_MATROX_MGA2164W 18	/* Matrox MGA2164W (Millenium II) */
++#define FB_ACCEL_MATROX_MGA2164W_AGP 19	/* Matrox MGA2164W (Millenium II) */
++#define FB_ACCEL_MATROX_MGAG100	20	/* Matrox G100 (Productiva G100) */
++#define FB_ACCEL_MATROX_MGAG200	21	/* Matrox G200 (Myst, Mill, ...) */
++#define FB_ACCEL_SUN_CG14	22	/* Sun cgfourteen		 */
++#define FB_ACCEL_SUN_BWTWO	23	/* Sun bwtwo			*/
++#define FB_ACCEL_SUN_CGTHREE	24	/* Sun cgthree			*/
++#define FB_ACCEL_SUN_TCX	25	/* Sun tcx			*/
++#define FB_ACCEL_MATROX_MGAG400	26	/* Matrox G400			*/
++#define FB_ACCEL_NV3		27	/* nVidia RIVA 128              */
++#define FB_ACCEL_NV4		28	/* nVidia RIVA TNT		*/
++#define FB_ACCEL_NV5		29	/* nVidia RIVA TNT2		*/
++#define FB_ACCEL_CT_6555x	30	/* C&T 6555x			*/
++#define FB_ACCEL_3DFX_BANSHEE	31	/* 3Dfx Banshee			*/
++#define FB_ACCEL_ATI_RAGE128	32	/* ATI Rage128 family		*/
++#define FB_ACCEL_IGS_CYBER2000	33	/* CyberPro 2000		*/
++#define FB_ACCEL_IGS_CYBER2010	34	/* CyberPro 2010		*/
++#define FB_ACCEL_IGS_CYBER5000	35	/* CyberPro 5000		*/
++#define FB_ACCEL_SIS_GLAMOUR    36	/* SiS 300/630/540              */
++#define FB_ACCEL_3DLABS_PERMEDIA3 37	/* 3Dlabs Permedia 3		*/
++#define FB_ACCEL_ATI_RADEON	38	/* ATI Radeon family		*/
++#define FB_ACCEL_I810           39      /* Intel 810/815                */
++#define FB_ACCEL_SIS_GLAMOUR_2  40	/* SiS 315, 650, 740		*/
++#define FB_ACCEL_SIS_XABRE      41	/* SiS 330 ("Xabre")		*/
++#define FB_ACCEL_I830           42      /* Intel 830M/845G/85x/865G     */
++#define FB_ACCEL_NV_10          43      /* nVidia Arch 10               */
++#define FB_ACCEL_NV_20          44      /* nVidia Arch 20               */
++#define FB_ACCEL_NV_30          45      /* nVidia Arch 30               */
++#define FB_ACCEL_NV_40          46      /* nVidia Arch 40               */
++#define FB_ACCEL_XGI_VOLARI_V	47	/* XGI Volari V3XT, V5, V8      */
++#define FB_ACCEL_XGI_VOLARI_Z	48	/* XGI Volari Z7                */
++#define FB_ACCEL_OMAP1610	49	/* TI OMAP16xx                  */
++#define FB_ACCEL_TRIDENT_TGUI	50	/* Trident TGUI			*/
++#define FB_ACCEL_TRIDENT_3DIMAGE 51	/* Trident 3DImage		*/
++#define FB_ACCEL_TRIDENT_BLADE3D 52	/* Trident Blade3D		*/
++#define FB_ACCEL_TRIDENT_BLADEXP 53	/* Trident BladeXP		*/
++#define FB_ACCEL_CIRRUS_ALPINE   53	/* Cirrus Logic 543x/544x/5480	*/
++#define FB_ACCEL_NEOMAGIC_NM2070 90	/* NeoMagic NM2070              */
++#define FB_ACCEL_NEOMAGIC_NM2090 91	/* NeoMagic NM2090              */
++#define FB_ACCEL_NEOMAGIC_NM2093 92	/* NeoMagic NM2093              */
++#define FB_ACCEL_NEOMAGIC_NM2097 93	/* NeoMagic NM2097              */
++#define FB_ACCEL_NEOMAGIC_NM2160 94	/* NeoMagic NM2160              */
++#define FB_ACCEL_NEOMAGIC_NM2200 95	/* NeoMagic NM2200              */
++#define FB_ACCEL_NEOMAGIC_NM2230 96	/* NeoMagic NM2230              */
++#define FB_ACCEL_NEOMAGIC_NM2360 97	/* NeoMagic NM2360              */
++#define FB_ACCEL_NEOMAGIC_NM2380 98	/* NeoMagic NM2380              */
++#define FB_ACCEL_PXA3XX		 99	/* PXA3xx			*/
++
++#define FB_ACCEL_SAVAGE4        0x80	/* S3 Savage4                   */
++#define FB_ACCEL_SAVAGE3D       0x81	/* S3 Savage3D                  */
++#define FB_ACCEL_SAVAGE3D_MV    0x82	/* S3 Savage3D-MV               */
++#define FB_ACCEL_SAVAGE2000     0x83	/* S3 Savage2000                */
++#define FB_ACCEL_SAVAGE_MX_MV   0x84	/* S3 Savage/MX-MV              */
++#define FB_ACCEL_SAVAGE_MX      0x85	/* S3 Savage/MX                 */
++#define FB_ACCEL_SAVAGE_IX_MV   0x86	/* S3 Savage/IX-MV              */
++#define FB_ACCEL_SAVAGE_IX      0x87	/* S3 Savage/IX                 */
++#define FB_ACCEL_PROSAVAGE_PM   0x88	/* S3 ProSavage PM133           */
++#define FB_ACCEL_PROSAVAGE_KM   0x89	/* S3 ProSavage KM133           */
++#define FB_ACCEL_S3TWISTER_P    0x8a	/* S3 Twister                   */
++#define FB_ACCEL_S3TWISTER_K    0x8b	/* S3 TwisterK                  */
++#define FB_ACCEL_SUPERSAVAGE    0x8c    /* S3 Supersavage               */
++#define FB_ACCEL_PROSAVAGE_DDR  0x8d	/* S3 ProSavage DDR             */
++#define FB_ACCEL_PROSAVAGE_DDRK 0x8e	/* S3 ProSavage DDR-K           */
++
++#define FB_ACCEL_PUV3_UNIGFX	0xa0	/* PKUnity-v3 Unigfx		*/
++
++#define FB_CAP_FOURCC		1	/* Device supports FOURCC-based formats */
++
++struct fb_fix_screeninfo {
++	char id[16];			/* identification string eg "TT Builtin" */
++	unsigned long smem_start;	/* Start of frame buffer mem */
++					/* (physical address) */
++	__u32 smem_len;			/* Length of frame buffer mem */
++	__u32 type;			/* see FB_TYPE_*		*/
++	__u32 type_aux;			/* Interleave for interleaved Planes */
++	__u32 visual;			/* see FB_VISUAL_*		*/ 
++	__u16 xpanstep;			/* zero if no hardware panning  */
++	__u16 ypanstep;			/* zero if no hardware panning  */
++	__u16 ywrapstep;		/* zero if no hardware ywrap    */
++	__u32 line_length;		/* length of a line in bytes    */
++	unsigned long mmio_start;	/* Start of Memory Mapped I/O   */
++					/* (physical address) */
++	__u32 mmio_len;			/* Length of Memory Mapped I/O  */
++	__u32 accel;			/* Indicate to driver which	*/
++					/*  specific chip/card we have	*/
++	__u16 capabilities;		/* see FB_CAP_*			*/
++	__u16 reserved[2];		/* Reserved for future compatibility */
++};
++
++/* Interpretation of offset for color fields: All offsets are from the right,
++ * inside a "pixel" value, which is exactly 'bits_per_pixel' wide (means: you
++ * can use the offset as right argument to <<). A pixel afterwards is a bit
++ * stream and is written to video memory as that unmodified.
++ *
++ * For pseudocolor: offset and length should be the same for all color
++ * components. Offset specifies the position of the least significant bit
++ * of the pallette index in a pixel value. Length indicates the number
++ * of available palette entries (i.e. # of entries = 1 << length).
++ */
++struct fb_bitfield {
++	__u32 offset;			/* beginning of bitfield	*/
++	__u32 length;			/* length of bitfield		*/
++	__u32 msb_right;		/* != 0 : Most significant bit is */ 
++					/* right */ 
++};
++
++#define FB_NONSTD_HAM		1	/* Hold-And-Modify (HAM)        */
++#define FB_NONSTD_REV_PIX_IN_B	2	/* order of pixels in each byte is reversed */
++
++#define FB_ACTIVATE_NOW		0	/* set values immediately (or vbl)*/
++#define FB_ACTIVATE_NXTOPEN	1	/* activate on next open	*/
++#define FB_ACTIVATE_TEST	2	/* don't set, round up impossible */
++#define FB_ACTIVATE_MASK       15
++					/* values			*/
++#define FB_ACTIVATE_VBL	       16	/* activate values on next vbl  */
++#define FB_CHANGE_CMAP_VBL     32	/* change colormap on vbl	*/
++#define FB_ACTIVATE_ALL	       64	/* change all VCs on this fb	*/
++#define FB_ACTIVATE_FORCE     128	/* force apply even when no change*/
++#define FB_ACTIVATE_INV_MODE  256       /* invalidate videomode */
++
++#define FB_ACCELF_TEXT		1	/* (OBSOLETE) see fb_info.flags and vc_mode */
++
++#define FB_SYNC_HOR_HIGH_ACT	1	/* horizontal sync high active	*/
++#define FB_SYNC_VERT_HIGH_ACT	2	/* vertical sync high active	*/
++#define FB_SYNC_EXT		4	/* external sync		*/
++#define FB_SYNC_COMP_HIGH_ACT	8	/* composite sync high active   */
++#define FB_SYNC_BROADCAST	16	/* broadcast video timings      */
++					/* vtotal = 144d/288n/576i => PAL  */
++					/* vtotal = 121d/242n/484i => NTSC */
++#define FB_SYNC_ON_GREEN	32	/* sync on green */
++
++#define FB_VMODE_NONINTERLACED  0	/* non interlaced */
++#define FB_VMODE_INTERLACED	1	/* interlaced	*/
++#define FB_VMODE_DOUBLE		2	/* double scan */
++#define FB_VMODE_ODD_FLD_FIRST	4	/* interlaced: top line first */
++#define FB_VMODE_MASK		255
++
++#define FB_VMODE_YWRAP		256	/* ywrap instead of panning     */
++#define FB_VMODE_SMOOTH_XPAN	512	/* smooth xpan possible (internally used) */
++#define FB_VMODE_CONUPDATE	512	/* don't update x/yoffset	*/
++
++/*
++ * Display rotation support
++ */
++#define FB_ROTATE_UR      0
++#define FB_ROTATE_CW      1
++#define FB_ROTATE_UD      2
++#define FB_ROTATE_CCW     3
++
++#define PICOS2KHZ(a) (1000000000UL/(a))
++#define KHZ2PICOS(a) (1000000000UL/(a))
++
++struct fb_var_screeninfo {
++	__u32 xres;			/* visible resolution		*/
++	__u32 yres;
++	__u32 xres_virtual;		/* virtual resolution		*/
++	__u32 yres_virtual;
++	__u32 xoffset;			/* offset from virtual to visible */
++	__u32 yoffset;			/* resolution			*/
++
++	__u32 bits_per_pixel;		/* guess what			*/
++	__u32 grayscale;		/* 0 = color, 1 = grayscale,	*/
++					/* >1 = FOURCC			*/
++	struct fb_bitfield red;		/* bitfield in fb mem if true color, */
++	struct fb_bitfield green;	/* else only length is significant */
++	struct fb_bitfield blue;
++	struct fb_bitfield transp;	/* transparency			*/	
++
++	__u32 nonstd;			/* != 0 Non standard pixel format */
++
++	__u32 activate;			/* see FB_ACTIVATE_*		*/
++
++	__u32 height;			/* height of picture in mm    */
++	__u32 width;			/* width of picture in mm     */
++
++	__u32 accel_flags;		/* (OBSOLETE) see fb_info.flags */
++
++	/* Timing: All values in pixclocks, except pixclock (of course) */
++	__u32 pixclock;			/* pixel clock in ps (pico seconds) */
++	__u32 left_margin;		/* time from sync to picture	*/
++	__u32 right_margin;		/* time from picture to sync	*/
++	__u32 upper_margin;		/* time from sync to picture	*/
++	__u32 lower_margin;
++	__u32 hsync_len;		/* length of horizontal sync	*/
++	__u32 vsync_len;		/* length of vertical sync	*/
++	__u32 sync;			/* see FB_SYNC_*		*/
++	__u32 vmode;			/* see FB_VMODE_*		*/
++	__u32 rotate;			/* angle we rotate counter clockwise */
++	__u32 colorspace;		/* colorspace for FOURCC-based modes */
++	__u32 reserved[4];		/* Reserved for future compatibility */
++};
++
++struct fb_cmap {
++	__u32 start;			/* First entry	*/
++	__u32 len;			/* Number of entries */
++	__u16 *red;			/* Red values	*/
++	__u16 *green;
++	__u16 *blue;
++	__u16 *transp;			/* transparency, can be NULL */
++};
++
++struct fb_con2fbmap {
++	__u32 console;
++	__u32 framebuffer;
++};
++
++/* VESA Blanking Levels */
++#define VESA_NO_BLANKING        0
++#define VESA_VSYNC_SUSPEND      1
++#define VESA_HSYNC_SUSPEND      2
++#define VESA_POWERDOWN          3
++
++
++enum {
++	/* screen: unblanked, hsync: on,  vsync: on */
++	FB_BLANK_UNBLANK       = VESA_NO_BLANKING,
++
++	/* screen: blanked,   hsync: on,  vsync: on */
++	FB_BLANK_NORMAL        = VESA_NO_BLANKING + 1,
++
++	/* screen: blanked,   hsync: on,  vsync: off */
++	FB_BLANK_VSYNC_SUSPEND = VESA_VSYNC_SUSPEND + 1,
++
++	/* screen: blanked,   hsync: off, vsync: on */
++	FB_BLANK_HSYNC_SUSPEND = VESA_HSYNC_SUSPEND + 1,
++
++	/* screen: blanked,   hsync: off, vsync: off */
++	FB_BLANK_POWERDOWN     = VESA_POWERDOWN + 1
++};
++
++#define FB_VBLANK_VBLANKING	0x001	/* currently in a vertical blank */
++#define FB_VBLANK_HBLANKING	0x002	/* currently in a horizontal blank */
++#define FB_VBLANK_HAVE_VBLANK	0x004	/* vertical blanks can be detected */
++#define FB_VBLANK_HAVE_HBLANK	0x008	/* horizontal blanks can be detected */
++#define FB_VBLANK_HAVE_COUNT	0x010	/* global retrace counter is available */
++#define FB_VBLANK_HAVE_VCOUNT	0x020	/* the vcount field is valid */
++#define FB_VBLANK_HAVE_HCOUNT	0x040	/* the hcount field is valid */
++#define FB_VBLANK_VSYNCING	0x080	/* currently in a vsync */
++#define FB_VBLANK_HAVE_VSYNC	0x100	/* verical syncs can be detected */
++
++struct fb_vblank {
++	__u32 flags;			/* FB_VBLANK flags */
++	__u32 count;			/* counter of retraces since boot */
++	__u32 vcount;			/* current scanline position */
++	__u32 hcount;			/* current scandot position */
++	__u32 reserved[4];		/* reserved for future compatibility */
++};
++
++/* Internal HW accel */
++#define ROP_COPY 0
++#define ROP_XOR  1
++
++struct fb_copyarea {
++	__u32 dx;
++	__u32 dy;
++	__u32 width;
++	__u32 height;
++	__u32 sx;
++	__u32 sy;
++};
++
++struct fb_fillrect {
++	__u32 dx;	/* screen-relative */
++	__u32 dy;
++	__u32 width;
++	__u32 height;
++	__u32 color;
++	__u32 rop;
++};
++
++struct fb_image {
++	__u32 dx;		/* Where to place image */
++	__u32 dy;
++	__u32 width;		/* Size of image */
++	__u32 height;
++	__u32 fg_color;		/* Only used when a mono bitmap */
++	__u32 bg_color;
++	__u8  depth;		/* Depth of the image */
++	const char *data;	/* Pointer to image data */
++	struct fb_cmap cmap;	/* color map info */
++};
++
++/*
++ * hardware cursor control
++ */
++
++#define FB_CUR_SETIMAGE 0x01
++#define FB_CUR_SETPOS   0x02
++#define FB_CUR_SETHOT   0x04
++#define FB_CUR_SETCMAP  0x08
++#define FB_CUR_SETSHAPE 0x10
++#define FB_CUR_SETSIZE	0x20
++#define FB_CUR_SETALL   0xFF
++
++struct fbcurpos {
++	__u16 x, y;
++};
++
++struct fb_cursor {
++	__u16 set;		/* what to set */
++	__u16 enable;		/* cursor on/off */
++	__u16 rop;		/* bitop operation */
++	const char *mask;	/* cursor mask bits */
++	struct fbcurpos hot;	/* cursor hot spot */
++	struct fb_image	image;	/* Cursor image */
++};
++
++#ifdef CONFIG_FB_BACKLIGHT
++/* Settings for the generic backlight code */
++#define FB_BACKLIGHT_LEVELS	128
++#define FB_BACKLIGHT_MAX	0xFF
++#endif
++
++struct fb_dmabuf_export {
++	__u32 fd;
++	__u32 flags;
++};
++
++#endif /* _UAPI_LINUX_FB_H */
++#endif
+diff --git a/driver/product/kernel/include/linux/kds.h b/driver/product/kernel/include/linux/kds.h
+new file mode 100755
+index 0000000..1346eda
+--- /dev/null
++++ b/driver/product/kernel/include/linux/kds.h
+@@ -0,0 +1,173 @@
++/*
++ *
++ * (C) COPYRIGHT 2012-2013 ARM Limited. All rights reserved.
++ *
++ * This program is free software and is provided to you under the terms of the
++ * GNU General Public License version 2 as published by the Free Software
++ * Foundation, and any use by you of this program is subject to the terms
++ * of such GNU licence.
++ *
++ * A copy of the licence is included with the program, and can also be obtained
++ * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
++ * Boston, MA  02110-1301, USA.
++ *
++ */
++
++
++
++
++
++#ifndef _KDS_H_
++#define _KDS_H_
++
++#include <linux/list.h>
++#include <linux/workqueue.h>
++
++#define KDS_WAIT_BLOCKING (ULONG_MAX)
++
++struct kds_resource_set;
++
++typedef void (*kds_callback_fn) (void *callback_parameter, void *callback_extra_parameter);
++
++struct kds_callback
++{
++	kds_callback_fn  user_cb; /* real cb */
++	int direct;               /* do direct or queued call? */
++	struct workqueue_struct *wq;
++};
++
++struct kds_link
++{
++	struct kds_resource_set *parent;
++	struct list_head         link;
++	unsigned long            state;
++};
++
++struct kds_resource
++{
++	struct kds_link waiters;
++};
++
++/* callback API */
++
++/* Initialize a callback object.
++ *
++ * Typically created per context or per hw resource.
++ *
++ * Callbacks can be performed directly if no nested locking can
++ * happen in the client.
++ *
++ * Nested locking can occur when a lock is held during the kds_async_waitall or
++ * kds_resource_set_release call. If the callback needs to take the same lock
++ * nested locking will happen.
++ *
++ * If nested locking could happen non-direct callbacks can be requested.
++ * Callbacks will then be called asynchronous to the triggering call.
++ */
++int kds_callback_init(struct kds_callback *cb, int direct, kds_callback_fn user_cb);
++
++/* Terminate the use of a callback object.
++ *
++ * If the callback object was set up as non-direct
++ * any pending callbacks will be flushed first.
++ * Note that to avoid a deadlock the lock callbacks needs
++ * can't be held when a callback object is terminated.
++ */
++void kds_callback_term(struct kds_callback *cb);
++
++
++/* resource object API */
++
++/* initialize a resource handle for a shared resource */
++void kds_resource_init(struct kds_resource * const resource);
++
++/*
++ * Will return 0 on success.
++ * If the resource is being used or waited -EBUSY is returned.
++ * The caller should NOT try to terminate a resource that could still have clients.
++ * After the function returns the resource is no longer known by kds.
++ */
++int kds_resource_term(struct kds_resource *resource);
++
++/* Asynchronous wait for a set of resources.
++ * Callback will be called when all resources are available.
++ * If all the resources was available the callback will be called before kds_async_waitall returns.
++ * So one must not hold any locks the callback code-flow can take when calling kds_async_waitall.
++ * Caller considered to own/use the resources until \a kds_rset_release is called.
++ * exclusive_access_bitmap is a bitmap where a high bit means exclusive access while a low bit means shared access.
++ * Use the Linux __set_bit API, where the index of the buffer to control is used as the bit index.
++ *
++ * Standard Linux error return value.
++ */
++int kds_async_waitall(
++		struct kds_resource_set ** const pprset,
++		struct kds_callback      *cb,
++		void                     *callback_parameter,
++		void                     *callback_extra_parameter,
++		int                       number_resources,
++		unsigned long            *exclusive_access_bitmap,
++		struct kds_resource     **resource_list);
++
++/* Synchronous wait for a set of resources.
++ * Function will return when one of these have happened:
++ * - all resources have been obtained
++ * - timeout lapsed while waiting
++ * - a signal was received while waiting
++ *
++ * To wait without a timeout, specify KDS_WAIT_BLOCKING for \a jifies_timeout, otherwise
++ * the timeout in jiffies. A zero timeout attempts to obtain all resources and returns
++ * immediately with a timeout if all resources could not be obtained.
++ *
++ * Caller considered to own/use the resources when the function returns.
++ * Caller must release the resources using \a kds_rset_release.
++ *
++ * Calling this function while holding already locked resources or other locking primitives is dangerous.
++ * One must if this is needed decide on a lock order of the resources and/or the other locking primitives
++ * and always take the resources/locking primitives in the specific order.
++ *
++ * Use the ERR_PTR framework to decode the return value.
++ * NULL = time out
++ * If IS_ERR then PTR_ERR gives:
++ *  ERESTARTSYS = signal received, retry call after signal
++ *  all other values = internal error, lock failed
++ * Other values  = successful wait, now the owner, must call kds_resource_set_release
++ */
++struct kds_resource_set *kds_waitall(
++		int                   number_resources,
++		unsigned long        *exclusive_access_bitmap,
++		struct kds_resource **resource_list,
++		unsigned long         jifies_timeout);
++
++/* Release resources after use.
++ * Caller must handle that other async callbacks will trigger,
++ * so must avoid holding any locks a callback will take.
++ *
++ * The function takes a pointer to your poiner to handle a race
++ * between a cancelation and a completion.
++ *
++ * If the caller can't guarantee that a race can't occur then
++ * the passed in pointer must be the same in both call paths
++ * to allow kds to manage the potential race.
++ */
++void kds_resource_set_release(struct kds_resource_set **pprset);
++
++/* Release resources after use and wait callbacks to complete.
++ * Caller must handle that other async callbacks will trigger,
++ * so must avoid holding any locks a callback will take.
++ *
++ * The function takes a pointer to your poiner to handle a race
++ * between a cancelation and a completion.
++ *
++ * If the caller can't guarantee that a race can't occur then
++ * the passed in pointer must be the same in both call paths
++ * to allow kds to manage the potential race.
++ *
++ * This should be used to cancel waits which are pending on a kds
++ * resource.
++ *
++ * It is a bug to call this from atomic contexts and from within
++ * a kds callback that now owns the kds_rseource.
++ */
++
++void kds_resource_set_release_sync(struct kds_resource_set **pprset);
++#endif /* _KDS_H_ */
+diff --git a/driver/product/kernel/kbuild_flags b/driver/product/kernel/kbuild_flags
+new file mode 100755
+index 0000000..d66cdef
+--- /dev/null
++++ b/driver/product/kernel/kbuild_flags
+@@ -0,0 +1,43 @@
++
++export KBUILD_EXTRA_SYMBOLS += $(COMMON_DIR)/drv/Module.symvers
++
++#SDK include header files
++export EXTRA_CFLAGS += -I$(src)/include                \
++                -I$(src)/drivers/gpu/arm/midgard       \
++                -I$(COMMON_UNF_INCLUDE)                 \
++                -I$(COMMON_DRV_INCLUDE)                 \
++                -I$(MSP_DRV_INCLUDE)    
++
++export ccflags-y += -I$(src)/include                   \
++                -I$(src)/drivers/gpu/arm/midgard       \
++                -I$(COMMON_UNF_INCLUDE)                 \
++                -I$(COMMON_DRV_INCLUDE)                 \
++                -I$(MSP_DRV_INCLUDE)    
++
++#build in or not
++export CONFIG_MALI_MIDGARD=m
++export CONFIG_MALI_PLATFORM_DEVICETREE=y
++export CONFIG_MALI_GATOR_SUPPORT=y
++export CONFIG_MALI_DEVFREQ=y
++
++#SDK flags  
++export EXTRA_CFLAGS += $(CFG_HI_KMOD_CFLAGS)
++export ccflags-y += $(CFG_HI_KMOD_CFLAGS)
++
++#GPU flags
++MALI_GPU_DEFINE = -DCONFIG_MALI_MIDGARD -DMALI_GATOR_SUPPORT -DMALI_EXPERT \
++	-DCONFIG_MALI_PLATFORM_DEVICETREE -DCONFIG_MALI_TRACE_TIMELINE \
++	-DCONFIG_MALI_GATOR_SUPPORT
++	
++ifeq ($(CONFIG_MALI_DEVFREQ),y)
++MALI_GPU_DEFINE += -DCONFIG_MALI_DEVFREQ
++endif
++
++export ccflags-y += $(MALI_GPU_DEFINE)
++export subdir-ccflags-y += $(MALI_GPU_DEFINE)
++export EXTRA_CFLAGS += $(MALI_GPU_DEFINE)
++
++
++
++
++
+diff --git a/driver/product/kernel/sconscript b/driver/product/kernel/sconscript
+old mode 100644
+new mode 100755
+index 79d94b8..9cbccb0
+--- a/driver/product/kernel/sconscript
++++ b/driver/product/kernel/sconscript
+@@ -1,5 +1,5 @@
+ #
+-# (C) COPYRIGHT 2010-2014, 2016-2017 ARM Limited. All rights reserved.
++# (C) COPYRIGHT 2010-2014, 2016 ARM Limited. All rights reserved.
+ #
+ # This program is free software and is provided to you under the terms of the
+ # GNU General Public License version 2 as published by the Free Software
+@@ -18,3 +18,6 @@ Import('env')
+ 
+ if env['backend'] == 'kernel' and int(env['kernel_modules']) == 1:
+ 	SConscript('drivers/sconscript')
++
++	if Glob('tests/sconscript'):
++		SConscript('tests/sconscript')
+diff --git a/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/hi_drv_proc.h b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/hi_drv_proc.h
+new file mode 100755
+index 0000000..4cebb34
+--- /dev/null
++++ b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/hi_drv_proc.h
+@@ -0,0 +1,95 @@
++/******************************************************************************
++
++  Copyright (C), 2006-2018, Hisilicon Tech. Co., Ltd.
++
++ ******************************************************************************
++  File Name     : CMPI_proc.h
++  Version       : Initial Draft
++  Author        : Hisilicon multimedia software group
++  Created       : 2006/08/03
++  Description   :
++******************************************************************************/
++
++#ifndef __HI_DRV_PROC_H__
++#define __HI_DRV_PROC_H__
++
++#include <linux/seq_file.h>
++#include "hi_type.h"
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++/** @addtogroup H_PROC */
++/** @{ */
++
++#ifdef HI_PROC_SUPPORT
++
++#define PROC_PRINT(arg...) seq_printf(arg)
++
++HI_VOID HI_DRV_PROC_EchoHelper(const HI_CHAR *fmt, ...);
++HI_VOID HI_DRV_PROC_EchoHelperVargs(HI_CHAR *buf, HI_U32 size,  const HI_CHAR * fmt, va_list args);
++
++#else
++
++#define PROC_PRINT(arg...) ({do{}while(0);0;})
++
++static inline HI_VOID HI_DRV_PROC_EchoHelper(const HI_CHAR *fmt, ...) { }
++static inline HI_VOID HI_DRV_PROC_EchoHelperVargs(HI_CHAR *buf, HI_U32 size,  const HI_CHAR * fmt, va_list args) { }
++
++#endif
++
++#define MAX_ENTRY_NAME_LEN (31)
++
++typedef HI_S32 (*PROC_CTRL)(HI_U32, HI_U32);
++
++typedef HI_S32 (*DRV_PROC_READ_FN)(struct seq_file *, HI_VOID *);
++typedef HI_S32 (*DRV_PROC_WRITE_FN)(struct file * file,
++    const char __user * buf, size_t count, loff_t *ppos);
++typedef HI_S32 (*DRV_PROC_IOCTL_FN)(struct seq_file *, HI_U32 cmd, HI_U32 arg);
++
++typedef struct struCMPI_PROC_ITEM
++{
++    HI_CHAR entry_name[MAX_ENTRY_NAME_LEN+1];
++    struct proc_dir_entry *entry;
++    DRV_PROC_READ_FN read;
++    DRV_PROC_WRITE_FN write;
++    DRV_PROC_IOCTL_FN ioctl;
++    HI_VOID *data;
++}DRV_PROC_ITEM_S;
++
++typedef struct tagPROCEX
++{
++    DRV_PROC_READ_FN fnRead;
++    DRV_PROC_WRITE_FN fnWrite;
++    DRV_PROC_IOCTL_FN fnIoctl;
++}DRV_PROC_EX_S;
++
++typedef HI_VOID(*PROC_RemoveModule_Fun)(char *);
++typedef DRV_PROC_ITEM_S *(*PROC_AddModule_Fun)(char *, DRV_PROC_EX_S*, void *);
++
++typedef struct struCMPI_Proc_IntfParam{
++    PROC_AddModule_Fun     addModulefun;
++    PROC_RemoveModule_Fun  rmvModulefun;
++}DRV_PROC_INTFPARAM;
++
++HI_S32  HI_DRV_PROC_RegisterParam(DRV_PROC_INTFPARAM *param);
++HI_VOID HI_DRV_PROC_UnRegisterParam(HI_VOID);
++HI_S32  HI_DRV_PROC_Init(HI_VOID);
++HI_VOID HI_DRV_PROC_Exit(HI_VOID);
++
++ssize_t HI_DRV_PROC_ModuleWrite(struct file * file,
++    const char __user * buf, size_t count, loff_t *ppos, PROC_CTRL fun_ctl);
++
++DRV_PROC_ITEM_S* HI_DRV_PROC_AddModule(HI_CHAR *,DRV_PROC_EX_S*, HI_VOID *);
++HI_VOID HI_DRV_PROC_RemoveModule(HI_CHAR *);
++
++
++/** @} */
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif /* __HI_DRV_PROC_H__ */
++
+diff --git a/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/hi_osal.h b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/hi_osal.h
+new file mode 100755
+index 0000000..cb8c146
+--- /dev/null
++++ b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/hi_osal.h
+@@ -0,0 +1,53 @@
++/******************************************************************************
++Copyright (C), 2013-2014, Hisilicon Tech. Co., Ltd.
++******************************************************************************
++File Name     : hi_osal.h
++Version       : V1.0 Initial Draft
++Author        : sdk
++Created       : 2013/7/25
++Last Modified :
++Description   : OS Abstract Layer.
++Function List : None.
++History       :
++******************************************************************************/
++#ifndef __HI_OSAL_H__
++#define __HI_OSAL_H__
++
++#ifndef __KERNEL__
++#include <stdio.h>
++#include <stdarg.h>
++#else
++#include <linux/kernel.h>
++#endif
++
++#include "hi_type.h"
++
++#ifdef __cplusplus
++ #if __cplusplus
++extern "C" {
++ #endif
++#endif /* __cplusplus */
++
++/** @addtogroup   COMMON  */
++/** @{ */  /** <!-- [COMMON] */
++
++typedef va_list HI_VA_LIST_S;
++
++HI_CHAR* HI_OSAL_Strncpy(HI_CHAR *pszDest, const HI_CHAR *pszSrc, HI_SIZE_T ulLen);
++HI_S32 HI_OSAL_Strncmp(const HI_CHAR *pszStr1, const HI_CHAR *pszStr2, HI_SIZE_T ulLen);
++HI_S32 HI_OSAL_Strncasecmp(const HI_CHAR *pszStr1, const HI_CHAR *pszStr2, HI_SIZE_T ulLen);
++HI_CHAR* HI_OSAL_Strncat(HI_CHAR *pszDest, const HI_CHAR *pszSrc, HI_SIZE_T ulLen);
++HI_S32 HI_OSAL_Snprintf(HI_CHAR *pszStr, HI_SIZE_T ulLen, const HI_CHAR *pszFormat, ...);
++HI_S32 HI_OSAL_Vsnprintf(HI_CHAR *pszStr, HI_SIZE_T ulLen, const HI_CHAR *pszFormat, HI_VA_LIST_S stVAList);
++
++
++/** @} */  /** <!-- ==== group Definition end ==== */
++
++#ifdef __cplusplus
++ #if __cplusplus
++}
++ #endif
++#endif /* __cplusplus */
++
++#endif /* __HI_OSAL_H__ */
++
+diff --git a/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/hi_type.h b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/hi_type.h
+new file mode 100644
+index 0000000..24fa2fe
+--- /dev/null
++++ b/driver/product/kernel/drivers/gpu/arm/midgard/platform/devicetree/hi_type.h
+@@ -0,0 +1,142 @@
++/******************************************************************************
++ Copyright (C), 2001-2011, Hisilicon Tech. Co., Ltd.
++******************************************************************************
++File Name     : hi_type.h
++Version       : Initial Draft
++Author        : Hisilicon multimedia software group
++Created       : 2005/4/23
++Last Modified :
++Description   : Common data types of the system.
++                CNcomment: 系统共用的数据类型定义 CNend
++Function List :
++History       :
++******************************************************************************/
++#ifndef __HI_TYPE_H__
++#define __HI_TYPE_H__
++
++
++#ifdef __cplusplus
++#if __cplusplus
++extern "C"{
++#endif
++#endif /* __cplusplus */
++
++/*--------------------------------------------------------------------------------------------------------------*
++ * Defintion of basic data types. The data types are applicable to both the application layer and kernel codes. *
++ * CNcomment: 基本数据类型定义，应用层和内核代码均使用  CNend                                                   *
++ *--------------------------------------------------------------------------------------------------------------*/
++/*************************** Structure Definition ****************************/
++/** \addtogroup      Common_TYPE */
++/** @{ */  /** <!-- [Common_TYPE] */
++
++typedef unsigned char           HI_U8;
++typedef unsigned char           HI_UCHAR;
++typedef unsigned short          HI_U16;
++typedef unsigned int            HI_U32;
++typedef unsigned long           HI_ULONG;
++
++typedef signed char             HI_S8;
++typedef short                   HI_S16;
++typedef int                     HI_S32;
++typedef long                    HI_SLONG;
++
++#ifndef _M_IX86
++typedef unsigned long long      HI_U64;
++typedef long long               HI_S64;
++#else
++typedef __int64                 HI_U64;
++typedef __int64                 HI_S64;
++#endif
++
++typedef char                    HI_CHAR;
++typedef char*                   HI_PCHAR;
++
++typedef float                   HI_FLOAT;
++typedef double                  HI_DOUBLE;
++/*typedef void                    HI_VOID;*/
++#define HI_VOID         void
++
++typedef unsigned long           HI_SIZE_T;
++typedef unsigned long           HI_LENGTH_T;
++
++typedef HI_U32                  HI_HANDLE;
++
++typedef unsigned int            HI_PHYS_ADDR_T;
++
++#ifdef CONFIG_ARCH_LP64_MODE
++typedef unsigned long long      HI_VIRT_ADDR_T;
++#else
++typedef unsigned int            HI_VIRT_ADDR_T;
++#endif
++
++/** Constant Definition */
++/** CNcomment: 常量定义 */
++typedef enum
++{
++    HI_FALSE    = 0,
++    HI_TRUE     = 1,
++} HI_BOOL;
++
++#ifndef NULL
++#define NULL                0L
++#endif
++
++#define HI_NULL             0L
++#define HI_NULL_PTR         0L
++
++#define HI_SUCCESS          0
++#define HI_FAILURE          (-1)
++
++#define HI_INVALID_HANDLE   (0xffffffff)
++
++#define HI_INVALID_PTS      (0xffffffff)
++#define HI_INVALID_TIME     (0xffffffff)
++
++#define HI_OS_LINUX     0xabcd
++#define HI_OS_WIN32     0xcdef
++
++#ifdef _WIN32
++#define HI_OS_TYPE      HI_OS_WIN32
++#else
++#define __OS_LINUX__
++#define HI_OS_TYPE      HI_OS_LINUX
++#endif
++
++#ifdef HI_ADVCA_SUPPORT
++#define __INIT__
++#define __EXIT__
++#else
++#define __INIT__  __init
++#define __EXIT__  __exit
++#endif
++
++/**
++
++define of HI_HANDLE :
++bit31                                                           bit0
++  |<----   16bit --------->|<---   8bit    --->|<---  8bit   --->|
++  |--------------------------------------------------------------|
++  |      HI_MOD_ID_E       |  mod defined data |     chnID       |
++  |--------------------------------------------------------------|
++
++mod defined data: private data define by each module(for example: sub-mod id), usually, set to 0.
++*/
++
++#define HI_HANDLE_MAKEHANDLE(mod, privatedata, chnid)  (HI_HANDLE)( (((mod)& 0xffff) << 16) | ((((privatedata)& 0xff) << 8) ) | (((chnid) & 0xff)) )
++
++#define HI_HANDLE_GET_MODID(handle)     (((handle) >> 16) & 0xffff)
++#define HI_HANDLE_GET_PriDATA(handle)   (((handle) >> 8) & 0xff)
++#define HI_HANDLE_GET_CHNID(handle)     (((handle)) & 0xff)
++
++#define HI_UNUSED(x) ((x)=(x))
++
++/** @} */  /** <!-- ==== Structure Definition end ==== */
++
++#ifdef __cplusplus
++#if __cplusplus
++}
++#endif
++#endif /* __cplusplus */
++
++#endif /* __HI_TYPE_H__ */
++
+-- 
+2.17.1
+
+
